@@ -1,0 +1,132 @@
+service password-encryption
+!
+hostname {{ cgw.CustomerGatewayId }}
+!
+aaa new-model
+aaa authorization exec default local
+!
+vrf definition internal
+ rd {{ cgw.DmvpnAddress }}:1
+ !
+ address-family ipv4
+ exit-address-family
+!
+crypto ikev2 proposal IKEv2_PROPOSAL
+  encryption aes-cbc-192 aes-cbc-256
+  integrity sha256 sha384 sha512
+  group 14 24
+!
+crypto ikev2 policy IKEv2_POLICY
+  proposal IKEv2_PROPOSAL
+!
+crypto ikev2 keyring cisco-ikev2-keyring
+ peer dmvpn-node
+  description symmetric pre-shared key for the hub/spoke
+  address 0.0.0.0 0.0.0.0
+  pre-shared-key {{ settings.dmvpn_password }}
+!
+crypto ikev2 profile cisco-ikev2-profile
+ match address local interface GigabitEthernet1
+ match identity remote any
+ authentication remote pre-share
+ authentication local pre-share key {{ settings.dmvpn_password }}
+ keyring local cisco-ikev2-keyring
+!
+crypto ipsec transform-set AES256/SHA256/TUNNEL esp-aes 256 esp-sha256-hmac
+ mode tunnel
+!
+crypto ipsec transform-set AES256/SHA256/TRANSPORT esp-aes 256 esp-sha256-hmac
+ mode transport
+!
+crypto ipsec fragmentation before-encryption
+!
+crypto ipsec security-association replay window-size 128
+!
+crypto ipsec transform-set xform esp-aes 256 esp-sha256-hmac
+ mode transport
+!
+crypto ipsec df-bit clear
+!
+!
+crypto ipsec profile cisco-ipsec-ikev2
+ set transform-set AES256/SHA256/TRANSPORT
+ set ikev2-profile cisco-ikev2-profile
+!
+interface Tunnel1
+ description DMVPN
+ vrf forwarding internal
+ ip address {{ cgw.DmvpnAddress }} {{ cgw.DmvpnNetmask }}
+ no ip redirects
+ ip mtu 1400
+ ip nhrp network-id 1
+ ip nhrp nhs {{ hub_routers.h1_private }} nbma {{ hub_routers.h1_public}} multicast
+ ip nhrp nhs {{ hub_routers.h2_private }} nbma {{ hub_routers.h2_public }} multicast
+ ip tcp adjust-mss 1360
+ tunnel source GigabitEthernet1
+ tunnel mode gre multipoint
+ tunnel key 1
+ tunnel protection ipsec profile cisco-ipsec-ikev2
+!
+router bgp {{ cgw.asn }}
+ no bgp default ipv4-unicast
+ bgp log-neighbor-changes
+ timers bgp 3 15
+ !
+ address-family ipv4 vrf internal
+  bgp router-id {{ cgw.DmvpnAddress }}
+  neighbor {{ hub_routers.h1_private }} remote-as {{ cgw.asn }}
+  neighbor {{ hub_routers.h1_private }} remote-as next-hop-self
+  neighbor {{ hub_routers.h2_private }} remote-as {{ cgw.asn }}
+  neighbor {{ hub_routers.h2_private }} remote-as next-hop-self
+  maximum-paths 32
+  maximum-paths ibgp 32
+  neighbor {{ hub_routers.h1_private }} activate
+  neighbor {{ hub_routers.h2_private }} activate
+  neighbor VGWSPOKES peer-group
+  neighbor VGWSPOKES default-originate
+  neighbor VGWSPOKES prefix-list default-only out
+  neighbor VGWSPOKES timers 10 30 30
+  neighbor VGWSPOKES as-override
+  neighbor VGWSPOKES soft-reconfiguration inbound
+  neighbor VGWSPOKES next-hop-self
+  neighbor VGWSPOKES activate
+  exit-address-family
+!
+!
+virtual-service csr_mgmt
+ ip shared host-interface GigabitEthernet1
+!
+ip forward-protocol nd
+no ip http server
+no ip http secure-server
+!
+ip prefix-list default-only seq 10 permit 0.0.0.0/0
+!
+!
+!
+control-plane
+!
+!
+!
+!
+!
+line con 0
+ stopbits 1
+line aux 0
+ stopbits 1
+line vty 0 15
+ login local
+ exec-timeout 0 0
+ transport input ssh
+!
+!
+!
+!
+event manager applet 10interface
+ event none
+ action 1.0 cli command "enable"
+ action 1.1 cli command "config t"
+ action 1.2 cli command "interface gig1"
+ action 1.3 cli command "no negotiation auto"
+ action 1.4 cli command "speed 10000"
+ action 2.0 cli command "end"
