@@ -23,8 +23,7 @@ __license__ = "Cisco Sample Code License, Version 1.1"
 
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField, SelectField, IntegerField
-from wtforms.validators import ValidationError, DataRequired, EqualTo, NumberRange
-# from web_app.models import User
+from wtforms.validators import DataRequired, EqualTo, NumberRange
 
 
 class LoginForm(FlaskForm):

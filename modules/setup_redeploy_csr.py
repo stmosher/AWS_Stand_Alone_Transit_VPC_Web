@@ -191,15 +191,16 @@ def build_main(old_cgw, cgw):
                 },
             ]
         )
-        response = client.create_customer_gateway(
-            BgpAsn=int(cgw.asn),
-            PublicIp=cgw.PublicIp,
-            Type='ipsec.1'
-        )
-        cgw.CustomerGatewayId = response['CustomerGateway']['CustomerGatewayId']
+        # response = client.create_customer_gateway(
+        #     BgpAsn=int(cgw.asn),
+        #     PublicIp=cgw.PublicIp,
+        #     Type='ipsec.1'
+        # )
+        # cgw.CustomerGatewayId = response['CustomerGateway']['CustomerGatewayId']
+        cgw.CustomerGatewayId = old_cgw.CustomerGatewayId
         ec2.create_tags(
             Resources=[
-                cgw.CustomerGatewayId,
+                old_cgw.CustomerGatewayId,
             ],
             Tags=[
                 {
@@ -408,8 +409,7 @@ def main(old_cgw, new_cgw):
     # Remove the old csr VPC
     clean_up(old_cgw)
 
-    logger.info('CGW %s with public IP of %s has been replaced by CGW %s!', old_cgw.CustomerGatewayId, old_cgw.PublicIp,
-                new_cgw.CustomerGatewayId)
+    logger.info('Redeployment of %s successful', old_cgw.PublicIp)
     return 'success'
 
 
@@ -435,6 +435,7 @@ def transfer_eip(old_cgw, new_cgw):
         new_cgw.PublicIp = old_cgw.PublicIp
         old_cgw.eip_AllocationId = None
         old_cgw.eip_AssociationId = None
+        old_cgw.CustomerGatewayId = None
     except Exception as e:
         logger.error("Exception occurred", exc_info=True)
 

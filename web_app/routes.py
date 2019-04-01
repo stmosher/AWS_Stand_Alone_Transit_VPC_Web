@@ -27,6 +27,11 @@ from flask import flash
 from flask import redirect
 from flask import url_for
 from web_app import app
+from flask_login import login_user
+from flask_login import logout_user
+from flask_login import current_user
+from flask_login import login_required
+from web_app.user import User
 from web_app.forms import CsrEnable
 from web_app.forms import CsrDisable
 from web_app.forms import RemoveCapacity
@@ -48,6 +53,7 @@ from config import Settings
 import ipaddress
 import logging
 from copy import deepcopy
+import os
 
 from modules.tvpc_classes import BotoClient
 from modules.tvpc_classes import Router
@@ -57,11 +63,36 @@ from modules.tvpc_classes import Vgw
 
 @app.route('/')
 @app.route('/index')
+@login_required
 def index():
     return render_template('index.html', title='Home')
 
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User(username=os.environ.get('web_username'), password=os.environ.get('web_password'))
+        user_test = User(username=form.username.data, password=form.password.data)
+        if user_test.username != user.username or user_test.password != user.password:
+            flash('Invalid username or password')
+            return redirect(url_for('login'))
+        # login_user(user_test, remember=True)
+        login_user(user_test, remember=form.remember_me.data)
+        return redirect(url_for('index'))
+    return render_template('login.html', title='Sign In', form=form)
+
+
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
+
+
 @app.route('/add_cluster', methods=['GET', 'POST'])
+@login_required
 def add_cluster():
     logger = logging.getLogger(__name__)
     settings = Settings()
@@ -110,6 +141,7 @@ def add_cluster():
 
 
 @app.route('/extend_cluster', methods=['GET', 'POST'])
+@login_required
 def extend_cluster():
     settings = Settings()
     all_routers = get_all_routers()
@@ -186,6 +218,7 @@ def extend_cluster():
 
 
 @app.route('/capacity_add', methods=['GET', 'POST'])
+@login_required
 def capacity_add():
     settings = Settings()
     all_routers = get_all_routers()
@@ -253,6 +286,7 @@ def capacity_add():
 
 
 @app.route('/remove_cluster', methods=['GET', 'POST'])
+@login_required
 def remove_cluster():
     form = RemoveCluster()
     all_routers = get_all_routers()
@@ -273,6 +307,7 @@ def remove_cluster():
 
 
 @app.route('/contract_cluster', methods=['GET', 'POST'])
+@login_required
 def contract_cluster():
     form = ContractCluster()
     all_routers = get_all_routers()
@@ -306,6 +341,7 @@ def contract_cluster():
 
 
 @app.route('/csr_redeploy', methods=['GET', 'POST'])
+@login_required
 def csr_redeploy():
     all_routers = get_all_routers()
     settings = Settings()
@@ -374,6 +410,7 @@ def csr_redeploy():
 
 
 @app.route('/capacity_remove', methods=['GET', 'POST'])
+@login_required
 def capacity_remove():
     all_routers = get_all_routers()
     all_vpns = get_all_vpns()
@@ -412,6 +449,7 @@ def capacity_remove():
 
 
 @app.route('/csr_disable', methods=['GET', 'POST'])
+@login_required
 def csr_disable():
     logger = logging.getLogger(__name__)
     form = CsrDisable()
@@ -438,6 +476,7 @@ def csr_disable():
 
 
 @app.route('/csr_enable', methods=['GET', 'POST'])
+@login_required
 def csr_enable():
     logger = logging.getLogger(__name__)
     form = CsrEnable()
@@ -463,6 +502,7 @@ def csr_enable():
 
 
 @app.route('/dashboard', methods=['GET'])
+@login_required
 def dashboard():
     settings = Settings()
     regions = settings.get_regions()

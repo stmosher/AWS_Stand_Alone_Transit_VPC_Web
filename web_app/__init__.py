@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_login import LoginManager
 from config import Config
 from flask_bootstrap import Bootstrap
 import logging
@@ -7,6 +8,9 @@ import logging
 app = Flask(__name__)
 bootstrap = Bootstrap(app)
 app.config.from_object(Config)
+login = LoginManager(app)
+login.login_view = 'login'
+
 
 FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(handlers=[
