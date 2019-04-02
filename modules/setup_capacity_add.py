@@ -101,6 +101,7 @@ def build_main(results_queue, cgw):
         cgw.PublicIp = response['PublicIp']
 
         vpc = ec2.create_vpc(CidrBlock=cgw.vpc_cidr)
+        time.sleep(5)
         cgw.VpcId = vpc.id
         vpc.wait_until_available()
         vpc.create_tags(Tags=[{"Key": "Name", "Value": "transit_vpc"}, {"Key": settings.tvpc_program_key,

@@ -61,6 +61,7 @@
             <h3>VPNs</h3>
     <table class="table table-striped table-dark">
       <tr>
+          <th scope="col">Cluster</th>
           <th scope="col">Status</th>
           <th scope="col">VPN Id</th>
           <th scope="col">CGW IP</th>
@@ -71,6 +72,7 @@
       </tr>
         {% for i in vpns%}
             <TR>
+                <TD>{{ i.cluster_value }}</TD>
                 <TD>{{ i.status_aws }}</TD>
                 <TD>{{ i.VpnConnectionId }}</TD>
                 <TD>{{ i.PublicIp }}</TD>
