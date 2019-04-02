@@ -84,27 +84,27 @@ def clean_up(cgw):
             logger.error("Exception occurred", exc_info=True)
 
     logger.warning('Previous Error - Successfully executed clean_up function ')
-
-
-def collect_results(results_queue):
-    results = []
-    while True:
-        try:
-            results_element = results_queue.get(block=False)
-            results.append(results_element)
-        except Empty:
-            break
-    return results
-
-
-def collect_results_config1(results_config1_queue):
-    results_element = results_config1_queue.get(block=True)
-    return results_element
-
-
-def collect_results_config2(results_config2_queue):
-    results_element = results_config2_queue.get(block=True)
-    return results_element
+#
+#
+# def collect_results(results_queue):
+#     results = []
+#     while True:
+#         try:
+#             results_element = results_queue.get(block=False)
+#             results.append(results_element)
+#         except Empty:
+#             break
+#     return results
+#
+#
+# def collect_results_config1(results_config1_queue):
+#     results_element = results_config1_queue.get(block=True)
+#     return results_element
+#
+#
+# def collect_results_config2(results_config2_queue):
+#     results_element = results_config2_queue.get(block=True)
+#     return results_element
 
 
 def build_main(results_queue, cgw):
@@ -121,11 +121,11 @@ def build_main(results_queue, cgw):
         cgw.eip_AllocationId = response['AllocationId']
         cgw.PublicIp = response['PublicIp']
 
-        vpc = ec2.create_vpc(CidrBlock='192.168.66.0/28')
+        vpc = ec2.create_vpc(CidrBlock=cgw.vpc_cidr)
         cgw.VpcId = vpc.id
-        vpc.create_tags(Tags=[{"Key": "Name", "Value": "transit_vpc"}, {"Key": cgw.init_tag_key,
-                                                                        "Value": cgw.init_tag_value}])
         vpc.wait_until_available()
+        vpc.create_tags(Tags=[{"Key": "Name", "Value": "transit_vpc"}, {"Key": settings.tvpc_program_key,
+                                                                        "Value": cgw.cluster_value}])
 
         ig = ec2.create_internet_gateway()
         vpc.attach_internet_gateway(InternetGatewayId=ig.id)
@@ -137,7 +137,7 @@ def build_main(results_queue, cgw):
             GatewayId=ig.id
         )
 
-        subnet_1 = ec2.create_subnet(AvailabilityZone=cgw.AvailabilityZone, CidrBlock='192.168.66.0/28', VpcId=vpc.id)
+        subnet_1 = ec2.create_subnet(AvailabilityZone=cgw.AvailabilityZone, CidrBlock=cgw.vpc_cidr, VpcId=vpc.id)
         route_table.associate_with_subnet(SubnetId=subnet_1.id)
 
         sec_group = ec2.create_security_group(
@@ -147,9 +147,7 @@ def build_main(results_queue, cgw):
             {'FromPort': 4500, 'IpProtocol': 'udp', 'IpRanges': [{'CidrIp': '0.0.0.0/0'}], 'ToPort': 4500},
             {'FromPort': 0, 'IpProtocol': '50', 'IpRanges': [{'CidrIp': '0.0.0.0/0'}], 'ToPort': 0},
             {'FromPort': 500, 'IpProtocol': 'udp', 'IpRanges': [{'CidrIp': '0.0.0.0/0'}], 'ToPort': 500},
-            {'FromPort': 22, 'IpProtocol': 'tcp', 'IpRanges': [{'CidrIp': '0.0.0.0/0'}], 'ToPort': 22},
-            {'FromPort': 830, 'IpProtocol': 'tcp', 'IpRanges': [{'CidrIp': '0.0.0.0/0'}], 'ToPort': 830},
-            {'FromPort': -1, 'IpProtocol': 'icmp', 'IpRanges': [{'CidrIp': '0.0.0.0/0'}], 'ToPort': -1}
+            {'FromPort': 22, 'IpProtocol': 'tcp', 'IpRanges': [{'CidrIp': '0.0.0.0/0'}], 'ToPort': 22}
         ]
         )
 
@@ -157,8 +155,8 @@ def build_main(results_queue, cgw):
             ImageId=cgw.AmiId, InstanceType=cgw.InstanceType, MaxCount=1, MinCount=1, KeyName=cgw.KeyName,
             NetworkInterfaces=[{'SubnetId': subnet_1.id, 'DeviceIndex': 0, 'AssociatePublicIpAddress': True,
                                 'Groups': [sec_group.group_id]}],
-            TagSpecifications=[{'ResourceType': 'instance', 'Tags': [{'Key': cgw.init_tag_key,
-                                                                      'Value': cgw.init_tag_value}]}]
+            TagSpecifications=[{'ResourceType': 'instance', 'Tags': [{'Key': settings.tvpc_program_key,
+                                                                      'Value': cgw.cluster_value}]}]
         )
         instance_1[0].wait_until_running()
 
@@ -181,16 +179,12 @@ def build_main(results_queue, cgw):
             ],
             Tags=[
                 {
-                    'Key': cgw.init_tag_key,
-                    'Value': cgw.init_tag_value
-                },
-                {
                     'Key': 'Name',
                     'Value': cgw.PublicIp
                 },
                 {
                     'Key': settings.tvpc_program_key,
-                    'Value': cgw.init_tag_key
+                    'Value': cgw.cluster_value
                 },
                 {
                     'Key': 'tvpc_hub',
@@ -213,6 +207,10 @@ def build_main(results_queue, cgw):
                     'Value': str(cgw.available_bandwidth)
                 },
                 {
+                    'Key': 'tvpc_vpc_cidr',
+                    'Value': cgw.vpc_cidr
+                },
+                {
                     'Key': 'tvpc_DmvpnAddress',
                     'Value': cgw.DmvpnAddress
                 },
@@ -230,16 +228,12 @@ def build_main(results_queue, cgw):
             ],
             Tags=[
                 {
-                    'Key': cgw.init_tag_key,
-                    'Value': cgw.init_tag_value
-                },
-                {
                     'Key': 'Name',
                     'Value': cgw.PublicIp
                 },
                 {
                     'Key': settings.tvpc_program_key,
-                    'Value': cgw.init_tag_key
+                    'Value': cgw.cluster_value
                 },
                 {
                     'Key': 'InstanceId',
@@ -341,6 +335,8 @@ def configure_main(config_results_queue, cgw):
             ssh.send('wr mem\n')
             prompt(ssh)
             ssh.close()
+            cgw.eligible = 'True'
+            cgw.update_eligible_tag()
             result = {'success': cgw}
             config_results_queue.put(result)
         except Exception as e:
@@ -350,55 +346,123 @@ def configure_main(config_results_queue, cgw):
             config_results_queue.put(result)
 
 
-def main(cgw1, cgw2):
+def create_tasks(req_queue, num_processes, routers):
+    """
+         The request_queue is populated the router objects
+    """
+    for i in routers:
+        req_queue.put(i)
+    for i in range(num_processes):
+        req_queue.put('DONE')
+
+
+def work(req_queue, results_queue):
+    """
+        This is the target function for each process.  It repeatedly grabs from the request_queue until it grabs the
+        value "DONE" and then it terminates the work loop.
+    """
+    while True:
+        try:
+            val = req_queue.get(timeout=300)
+            if val == 'DONE':
+                break
+            else:
+                results_queue.put(build_main(results_queue, val))
+        except TimeoutError:
+            break
+
+
+def work_configure(req_queue, results_queue):
+    """
+        This is the target function for each process.  It repeatedly grabs from the request_queue until it grabs the
+        value "DONE" and then it terminates the work loop.
+    """
+    while True:
+        try:
+            val = req_queue.get(timeout=300)
+            if val == 'DONE':
+                break
+            else:
+                results_queue.put(configure_main(results_queue, val))
+        except TimeoutError:
+            break
+
+
+def collect_results(results_queue):
+    results = []
+    while True:
+        try:
+            results_element = results_queue.get(block=False)
+            if results_element is not None:
+                results.append(results_element)
+        except Empty:
+            break
+    return results
+
+
+def main(list_router_objects):
     logger = logging.getLogger(__name__)
-    # Build the VPC and Instances
+    config_results = None
+    req_queue = Queue()
     results_queue = Queue()
-    results_config1_queue = Queue()
-    results_config2_queue = Queue()
-    p1 = Process(target=build_main, args=(results_queue, cgw1,))
-    p2 = Process(target=build_main, args=(results_queue, cgw2,))
-    p1.start()
-    p2.start()
-    p1.join()
-    p2.join()
-    # results list of {'success'|'fail': cgwObject}
-    results = collect_results(results_queue)
+    num_processes = len(list_router_objects)
+    processes = []
+
+    create_tasks(req_queue, num_processes, list_router_objects)
+
+    for i in range(num_processes):
+        p = Process(target=work, args=(req_queue, results_queue))
+        p.start()
+        processes.append(p)
+
+    for p in processes:
+        p.join()
+
+    build_results = collect_results(results_queue)
 
     build_destroy_flag = False
-    for i in results:
-        if i.get('fail'):
+    for i in build_results:
+        if i.get('fail', False):
             build_destroy_flag = True
 
     if build_destroy_flag:
-        for i in results:
-            if i.get('success'):
+        for i in build_results:
+            if i.get('success', False):
                 clean_up(i['success'])
                 logger.warning('Cleaned up because partner VPC had error')
-                return 'fail', 'fail'
-    else:
-        p11 = Process(target=configure_main, args=(results_config1_queue, results[0]['success']))
-        p11.start()
-        p12 = Process(target=configure_main, args=(results_config2_queue, results[1]['success']))
-        p12.start()
-        p11.join()
-        p12.join()
-        # results list of {'success'|'fail': cgwObject}
-        config_results = list()
-        config_results.append(collect_results_config1(results_config1_queue))
-        config_results.append(collect_results_config2(results_config2_queue))
+        return False
 
-        config_destroy_flag = False
+    to_configure_list = list()
+    for i in build_results:
+        to_configure_list.append(i['success'])
+
+    if to_configure_list:
+        req_queue_c = Queue()
+        results_queue_c = Queue()
+        num_processes = len(list_router_objects)
+        processes = []
+
+        create_tasks(req_queue_c, num_processes, to_configure_list)
+
+        for i in range(num_processes):
+            p = Process(target=work_configure, args=(req_queue_c, results_queue_c))
+            p.start()
+            processes.append(p)
+
+        for p in processes:
+            p.join()
+
+        config_results = collect_results(results_queue_c)
+
+        conf_destroy_flag = False
         for i in config_results:
-            if i.get('fail'):
-                config_destroy_flag = True
+            if i.get('fail', False):
+                conf_destroy_flag = True
 
-        if config_destroy_flag:
+        if conf_destroy_flag:
             for i in config_results:
-                if i.get('success'):
+                if i.get('success', False):
                     clean_up(i['success'])
-                    return 'fail', 'fail'
-        else:
-            logger.info('Cluster %s routers successfully deployed and configured in region %s!', cgw1.init_tag_key,
-                        cgw1.Region)
-            return config_results[0]['success'], config_results[1]['success']
+                    logger.warning('Cleaned up because partner VPC had error')
+            return False
+    return True

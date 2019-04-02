@@ -104,6 +104,7 @@ class Router:
         self.asn = description['Tags'].get('tvpc_asn', '')
         self.available_bandwidth = description['Tags'].get('tvpc_available_bandwidth', '')
         self.DmvpnAddress = description['Tags'].get('tvpc_DmvpnAddress', '')
+        self.vpc_cidr = description['Tags'].get('tvpc_vpc_cidr', '')
 
         self.CustomerGatewayId = self.set_cid(cgws)
         self.eip_AllocationId = self.set_eip_allo(eips)

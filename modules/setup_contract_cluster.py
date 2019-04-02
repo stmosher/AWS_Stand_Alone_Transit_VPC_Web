@@ -21,188 +21,11 @@ __author__ = "Steven Mosher <stmosher@cisco.com>"
 __copyright__ = "Copyright (c) 2019 Cisco and/or its affiliates."
 __license__ = "Cisco Sample Code License, Version 1.1"
 
-# import boto3
-# from web_app.models import Cgw
-# from multiprocessing import Process, Queue
-import logging
+from multiprocessing import Process
 from modules.tvpc_classes import BotoClient
 from modules.tvpc_classes import Router
 from modules.tvpc_classes import Vpn
 from modules.tvpc_classes import Vgw
-from config import Settings
-#
-# def remove_cgw(cgw):
-#     logger = logging.getLogger(__name__)
-#     try:
-#         client = boto3.client('ec2', region_name=cgw.Region)
-#         if cgw.eip_AssociationId:
-#             try:
-#                 client.disassociate_address(
-#                     AssociationId=cgw.eip_AssociationId
-#                 )
-#             except Exception as e:
-#                 logger.error("Exception occurred", exc_info=True)
-#         if cgw.eip_AllocationId:
-#             try:
-#                 client.release_address(
-#                     AllocationId=cgw.eip_AllocationId
-#                 )
-#             except Exception as e:
-#                 logger.error("Exception occurred", exc_info=True)
-#
-#         ec2 = boto3.resource('ec2', region_name=cgw.Region)
-#         ec2client = ec2.meta.client
-#         if cgw.VpcId:
-#             try:
-#                 vpc = ec2.Vpc(cgw.VpcId)
-#                 for subnet in vpc.subnets.all():
-#                     for instance in subnet.instances.all():
-#                         instance.terminate()
-#                         instance.wait_until_terminated()
-#                 for gw in vpc.internet_gateways.all():
-#                     vpc.detach_internet_gateway(InternetGatewayId=gw.id)
-#                     gw.delete()
-#                 for subnet in vpc.subnets.all():
-#                     subnet.delete()
-#                 for rt in vpc.route_tables.all():
-#                     if not rt.associations:
-#                         rt.delete()
-#                 for sg in vpc.security_groups.all():
-#                     if sg.group_name != 'default':
-#                         sg.delete()
-#                 ec2client.delete_vpc(VpcId=cgw.VpcId)
-#             except Exception as e:
-#                 logger.error("Exception occurred", exc_info=True)
-#
-#         if cgw.CustomerGatewayId:
-#             try:
-#                 client.delete_customer_gateway(CustomerGatewayId=cgw.CustomerGatewayId)
-#             except Exception as e:
-#                 logger.error("Exception occurred", exc_info=True)
-#     except Exception as e:
-#         logger.error("Exception occurred", exc_info=True)
-#
-#
-# def work(req_queue):
-#     while True:
-#         try:
-#             val = req_queue.get(timeout=300)
-#             if val == 'DONE':
-#                 break
-#             else:
-#                 remove_cgw(val)
-#         except TimeoutError:
-#             break
-#
-#
-# def create_tasks(req_queue, num_processes, cgws):
-#     for i in cgws:
-#         req_queue.put(i)
-#     for i in range(num_processes):
-#         req_queue.put('DONE')
-#
-#
-# def remove_vpn(vpn):
-#     client = boto3.client('ec2', region_name=vpn.Region)
-#     try:
-#         client.delete_vpn_connection(
-#             VpnConnectionId=vpn.VpnConnectionId
-#         )
-#     except:
-#         pass
-#
-#
-# def work_vpn(req_queue):
-#     while True:
-#         try:
-#             val = req_queue.get(timeout=300)
-#             if val == 'DONE':
-#                 break
-#             else:
-#                 remove_vpn(val)
-#         except TimeoutError:
-#             break
-#
-#
-# def create_tasks_vpn(req_queue, num_processes, vpns):
-#     for i in vpns:
-#         req_queue.put(i)
-#     for i in range(num_processes):
-#         req_queue.put('DONE')
-#
-#
-# def main(cluster, region):
-#     logger = logging.getLogger(__name__)
-#     """
-#     This will remove all VPNs, VGW records, CGWs in a region other than cluster
-#     """
-#     try:
-#         # Delete all vgw records referencing init_value
-#         vgws = Vgw.query.filter_by(init_tag_key=cluster, Region=region).all()
-#         if vgws:
-#             for vgw in vgws:
-#                 db.session.delete(vgw)
-#         db.session.commit()
-#         # Delete all VPNs
-#         vpns = []
-#         cgws = Cgw.query.filter_by(init_tag_key=cluster, Region=region).all()
-#         for c in cgws:
-#             vpns.extend(Vpn.query.filter_by(CustomerGatewayId=c.CustomerGatewayId).all())
-#         if vpns:
-#             processes = []
-#             req_queue = Queue()
-#             num_processes = 10
-#
-#             for i in range(num_processes):
-#                 p = Process(target=work_vpn, args=(req_queue,))
-#                 p.start()
-#                 processes.append(p)
-#
-#             create_tasks_vpn(req_queue, num_processes, vpns)
-#
-#             for p in processes:
-#                 p.join()
-#
-#         # Delete all AWS CGW VPC
-#         processes = []
-#         req_queue = Queue()
-#         num_processes = len(cgws)
-#
-#         for i in range(num_processes):
-#             p = Process(target=work, args=(req_queue, ))
-#             p.start()
-#             processes.append(p)
-#
-#         create_tasks(req_queue, num_processes, cgws)
-#
-#         for p in processes:
-#             p.join()
-#
-#         # Remove cluster associated records from DB
-#         del_TunnelInsideCidr = []
-#         del_TunnelInsideInterfaceNumber = []
-#         del_Vpn = []
-#         for c in cgws:
-#             # Delete all TunnelInsideCidr who's CustomerGatewayId is a removed cgw
-#             del_TunnelInsideCidr.extend(TunnelInsideCidr.query.filter_by(CustomerGatewayId=c.CustomerGatewayId).all())
-#             # Delete all TunnelInsideInterfaceNumber who's CustomerGatewayId is a removed cgw
-#             del_TunnelInsideInterfaceNumber.extend(TunnelInsideInterfaceNumber.query.filter_by(CustomerGatewayId=c.CustomerGatewayId).all())
-#             # Delete all VPNs who's CustomerGatewayId is a removed cgw
-#             del_Vpn.extend(Vpn.query.filter_by(CustomerGatewayId=c.CustomerGatewayId).all())
-#             db.session.delete(c)
-#             db.session.commit()
-#         for tc in del_TunnelInsideCidr:
-#             db.session.delete(tc)
-#             db.session.commit()
-#         for ti in del_TunnelInsideInterfaceNumber:
-#             db.session.delete(ti)
-#             db.session.commit()
-#         for vp in del_Vpn:
-#             db.session.delete(vp)
-#             db.session.commit()
-#     except Exception as e:
-#         logger.error("Exception occurred", exc_info=True)
-#     logger.info('Cluster %s removed from region %s successfully!', cluster, region)
 
 
 def create_aws_objects(eip, vgw, cgw, rou, vpn):
@@ -246,16 +69,12 @@ def get_cluster_data(region):
     # get aws info
     ei, vg, cg, ro, vp = get_aws_information(region)
     region_routers_candidate, region_vgws_candidate, region_vpns_candidate = create_aws_objects(ei, vg, cg, ro, vp)
-
-    # create available cluster list
     available_clusters = get_available_clusters(region_routers_candidate)
     return region_routers_candidate, region_vpns_candidate, available_clusters
 
 
 def main(cluster, region):
-    logger = logging.getLogger(__name__)
     region_routers_candidate, region_vpns_candidate, available_clusters = get_cluster_data(region)
-
     for router in region_routers_candidate:
         if router.cluster_value == cluster:
             router.eligible = 'False'
@@ -263,6 +82,19 @@ def main(cluster, region):
     for vpn in region_vpns_candidate:
         if vpn.cluster_value == cluster:
             vpn.remove_vpn()
-    for router in region_vpns_candidate:
+    routers_to_remove = list()
+    for router in region_routers_candidate:
         if router.cluster_value == cluster:
-            router.remove_router_vpc_etc()
+            routers_to_remove.append(router)
+    if routers_to_remove:
+        processes = list()
+        for router in routers_to_remove:
+            p = Process(target=remove_router, args=(router,))
+            p.start()
+            processes.append(p)
+        for p in processes:
+            p.join()
+
+
+def remove_router(router):
+    router.remove_router_vpc_etc()

@@ -54,7 +54,6 @@ import ipaddress
 import logging
 from copy import deepcopy
 import os
-
 from modules.tvpc_classes import BotoClient
 from modules.tvpc_classes import Router
 from modules.tvpc_classes import Vpn
@@ -79,7 +78,6 @@ def login():
         if user_test.username != user.username or user_test.password != user.password:
             flash('Invalid username or password')
             return redirect(url_for('login'))
-        # login_user(user_test, remember=True)
         login_user(user_test, remember=form.remember_me.data)
         return redirect(url_for('index'))
     return render_template('login.html', title='Sign In', form=form)
@@ -109,6 +107,7 @@ def add_cluster():
         az_names = get_availability_zones_available(form.Region.data)
         all_routers = get_all_routers()
         available_dmvpn_addresses = get_available_dmvpn_addresses_hub(all_routers, form.cluster_value.data, 2)
+        available_subnets = get_available_vpc_cidr_space(all_routers, form.cluster_value.data, 2)
 
         router1 = Cgw(Region=form.Region.data, hub=True, region_extension=False, AvailabilityZone=az_names[0],
                       InstanceType=form.InstanceType.data, asn=form.asn.data, cluster_value=form.cluster_value.data,
@@ -116,18 +115,18 @@ def add_cluster():
                       AmiId=Settings.regions[form.Region.data]['ami'],
                       max_bandwidth=Settings.instance_types[form.InstanceType.data],
                       KeyName=Settings.regions[form.Region.data]['key'],
-                      DmvpnAddress=str(available_dmvpn_addresses[0]),
+                      DmvpnAddress=available_dmvpn_addresses[0],
                       DmvpnNetmask=str(ipaddress.ip_network(Settings.dmvpn_address_space).netmask),
-                      eligible='False', DmvpnCidr=Settings.dmvpn_address_space)
+                      eligible='False', DmvpnCidr=Settings.dmvpn_address_space, vpc_cidr=available_subnets[0])
         router2 = Cgw(Region=form.Region.data, hub=True, region_extension=False, AvailabilityZone=az_names[1],
                       InstanceType=form.InstanceType.data, asn=form.asn.data, cluster_value=form.cluster_value.data,
                       available_bandwidth=Settings.instance_types[form.InstanceType.data],
                       AmiId=Settings.regions[form.Region.data]['ami'],
                       max_bandwidth=Settings.instance_types[form.InstanceType.data],
                       KeyName=Settings.regions[form.Region.data]['key'],
-                      DmvpnAddress=str(available_dmvpn_addresses[1]),
+                      DmvpnAddress=available_dmvpn_addresses[1],
                       DmvpnNetmask=str(ipaddress.ip_network(Settings.dmvpn_address_space).netmask),
-                      eligible='False', DmvpnCidr=Settings.dmvpn_address_space)
+                      eligible='False', DmvpnCidr=Settings.dmvpn_address_space, vpc_cidr=available_subnets[1])
 
         r1, r2 = setup_add_cluster.main(router1, router2)
         if r1 == 'fail':
@@ -157,58 +156,47 @@ def extend_cluster():
     form.cluster_value.choices = cluster_list
 
     if form.validate_on_submit():
-        available_dmvpn_addresses = get_available_dmvpn_addresses(all_routers, form.cluster_value.data)
-        az_names = get_availability_zones_available(form.Region.data)
-        if form.cluster_value.data in unique_clusters:
+        cluster_already_there_result = check_router_in_region(all_routers, form.cluster_value.data, form.Region.data)
+        if cluster_already_there_result:
             flash("Region '{}' already has cluster '{}'. Maybe you want to + capacity.".format(form.Region.data,
                   form.cluster_value.data))
             return redirect(url_for('extend_cluster'))
+
+        available_dmvpn_addresses = get_available_dmvpn_addresses(all_routers, form.cluster_value.data, 2)
+        available_subnets = get_available_vpc_cidr_space(all_routers, form.cluster_value.data, 2)
+        az_names = get_availability_zones_available(form.Region.data)
+
         hubs = list()
         for rou in all_routers:
             if (rou.cluster_value == form.cluster_value.data) and (rou.hub == 'True'):
                 hubs.append(rou)
         cgw_template = hubs[0]
-        router1 = Cgw(Region=form.Region.data,
-                      hub=False,
-                      region_extension=True,
-                      AvailabilityZone=az_names[0],
-                      InstanceType=form.InstanceType.data,
-                      asn=cgw_template.asn,
-                      cluster_value=form.cluster_value.data,
-                      available_bandwidth=Settings.instance_types[form.InstanceType.data],
-                      AmiId=Settings.regions[form.Region.data]['ami'],
-                      max_bandwidth=Settings.instance_types[form.InstanceType.data],
-                      KeyName=Settings.regions[form.Region.data]['key'],
-                      DmvpnAddress=str(available_dmvpn_addresses[0]),
-                      DmvpnNetmask=str(ipaddress.ip_network(Settings.dmvpn_address_space).netmask),
-                      eligible='False',
-                      DmvpnCidr=Settings.dmvpn_address_space,
-                      h1_public=hubs[0].PublicIp,
-                      h1_private=hubs[0].DmvpnAddress,
-                      h2_public=hubs[1].PublicIp,
-                      h2_private=hubs[1].DmvpnAddress)
-        router2 = Cgw(Region=form.Region.data,
-                      hub=False,
-                      region_extension=True,
-                      AvailabilityZone=az_names[1],
-                      InstanceType=form.InstanceType.data,
-                      asn=cgw_template.asn,
-                      cluster_value=form.cluster_value.data,
-                      available_bandwidth=Settings.instance_types[form.InstanceType.data],
-                      AmiId=Settings.regions[form.Region.data]['ami'],
-                      max_bandwidth=Settings.instance_types[form.InstanceType.data],
-                      KeyName=Settings.regions[form.Region.data]['key'],
-                      DmvpnAddress=str(available_dmvpn_addresses[1]),
-                      DmvpnNetmask=str(ipaddress.ip_network(Settings.dmvpn_address_space).netmask),
-                      eligible='False',
-                      DmvpnCidr=Settings.dmvpn_address_space,
-                      h1_public=hubs[0].PublicIp,
-                      h1_private=hubs[0].DmvpnAddress,
-                      h2_public=hubs[1].PublicIp,
-                      h2_private=hubs[1].DmvpnAddress)
-
-        r1, r2 = setup_extend_cluster.main(router1, router2)
-        if r1 == 'fail':
+        list_router_objects = list()
+        for i in range(2):
+            list_router_objects.append(
+                Cgw(Region=form.Region.data,
+                    hub=False,
+                    region_extension=True,
+                    AvailabilityZone=az_names.pop(-1),
+                    InstanceType=form.InstanceType.data,
+                    asn=int(cgw_template.asn),
+                    cluster_value=form.cluster_value.data,
+                    available_bandwidth=Settings.instance_types[form.InstanceType.data],
+                    AmiId=Settings.regions[form.Region.data]['ami'],
+                    max_bandwidth=Settings.instance_types[form.InstanceType.data],
+                    KeyName=Settings.regions[form.Region.data]['key'],
+                    DmvpnAddress=available_dmvpn_addresses.pop(0),
+                    DmvpnNetmask=str(ipaddress.ip_network(Settings.dmvpn_address_space).netmask),
+                    eligible='False',
+                    DmvpnCidr=Settings.dmvpn_address_space,
+                    h1_public=hubs[0].PublicIp,
+                    h1_private=hubs[0].DmvpnAddress,
+                    h2_public=hubs[1].PublicIp,
+                    h2_private=hubs[1].DmvpnAddress,
+                    vpc_cidr=available_subnets.pop(0))
+                )
+        result = setup_extend_cluster.main(list_router_objects)
+        if not result:
             flash('Cluster extension deployment and configuration failed.')
         else:
             flash('Cluster extension deployed successfully!')
@@ -244,6 +232,8 @@ def capacity_add():
 
         available_dmvpn_addresses = get_available_dmvpn_addresses(all_routers, form.cluster_value.data,
                                                                   int(form.instance_number.data))
+        available_subnets = get_available_vpc_cidr_space(all_routers, form.cluster_value.data,
+                                                         int(form.instance_number.data))
         az_list = get_best_az(all_routers, form.Region.data, form.cluster_value.data, int(form.instance_number.data))
 
         hubs = list()
@@ -265,14 +255,15 @@ def capacity_add():
                     AmiId=Settings.regions[form.Region.data]['ami'],
                     max_bandwidth=Settings.instance_types[form.InstanceType.data],
                     KeyName=Settings.regions[form.Region.data]['key'],
-                    DmvpnAddress=str(available_dmvpn_addresses.pop(0)),
+                    DmvpnAddress=available_dmvpn_addresses.pop(0),
                     DmvpnNetmask=str(ipaddress.ip_network(Settings.dmvpn_address_space).netmask),
                     eligible='False',
                     DmvpnCidr=Settings.dmvpn_address_space,
                     h1_public=hubs[0].PublicIp,
                     h1_private=hubs[0].DmvpnAddress,
                     h2_public=hubs[1].PublicIp,
-                    h2_private=hubs[1].DmvpnAddress)
+                    h2_private=hubs[1].DmvpnAddress,
+                    vpc_cidr=available_subnets.pop(0))
                 )
 
         result = setup_capacity_add.main(list_router_objects)
@@ -377,7 +368,7 @@ def csr_redeploy():
             DmvpnAddress = available_dmvpn_addresses.pop(0)
         else:
             DmvpnAddress = old_cgw.DmvpnAddress
-
+        available_subnets = get_available_vpc_cidr_space(all_routers, form.cluster_value.data, 1)
         new_cgw = Cgw(Region=old_cgw.Region,
                       AvailabilityZone=old_cgw.AvailabilityZone,
                       hub=old_cgw.hub,
@@ -396,7 +387,9 @@ def csr_redeploy():
                       h1_public=hubs[0].PublicIp,
                       h1_private=hubs[0].DmvpnAddress,
                       h2_public=hubs[1].PublicIp,
-                      h2_private=hubs[1].DmvpnAddress)
+                      h2_private=hubs[1].DmvpnAddress,
+                      vpc_cidr=available_subnets.pop(0)
+                      )
 
         result = setup_redeploy_csr.main(old_cgw, new_cgw)
 
@@ -580,8 +573,6 @@ def get_best_az(routers, region, cluster, instance_number):
     for i in result_list_temp:
         # for k in i.keys():
         result_list_final.append(i['name'])
-    print('\n\n\nThis is my az results_list\n\n')
-    print(result_list_final)
     return result_list_final
 
 
@@ -625,7 +616,6 @@ def get_available_clusters(ro):
 def get_cluster_data(region):
     # get aws info
     ei, vg, cg, ro, vp = get_aws_information(region)
-
     # create objects from aws info
     region_routers_candidate, region_vgws_candidate, region_vpns_candidate = create_aws_objects(ei, vg, cg, ro, vp)
     # create available cluster list
@@ -633,28 +623,35 @@ def get_cluster_data(region):
     return region_routers_candidate, region_vgws_candidate, region_vpns_candidate, available_clusters
 
 
+def get_available_vpc_cidr_space(routers, cluster, number=2):
+    available_subnets = list()
+    used_subnets = list()
+    for r in routers:
+        if r.cluster_value == cluster:
+            used_subnets.append(r.vpc_cidr)
+    all_subnets = list(ipaddress.ip_network(Settings.vpc_cidr_address_space).subnets(new_prefix=28))
+    for i in all_subnets:
+        i = str(i)
+        if i not in used_subnets:
+            available_subnets.append(i)
+            if len(available_subnets) == number:
+                break
+    return available_subnets
+
+
 def get_available_dmvpn_addresses(routers, cluster, number=2):
     available_add = list()
     used_add = list()
     for r in routers:
-        print(r.cluster_value)
-        print(r.DmvpnAddress)
-        print(r.PublicIp)
         if r.cluster_value == cluster:
-            print('to used')
-            print(r.DmvpnAddress)
             used_add.append(r.DmvpnAddress)
     all_addresses = list(ipaddress.ip_network(Settings.dmvpn_address_space).hosts())
     for i in all_addresses:
-        print(i)
         i = str(i)
         if i not in used_add:
-            print(i)
             available_add.append(i)
             if len(available_add) == number:
                 break
-    print('this is my availabel address list')
-    print(available_add)
     return available_add
 
 
@@ -662,72 +659,17 @@ def get_available_dmvpn_addresses_hub(routers, cluster, number=2):
     available_add = list()
     used_add = list()
     for r in routers:
-        print(r.cluster_value)
-        print(r.DmvpnAddress)
-        print(r.PublicIp)
         if r.cluster_value == cluster:
-            print('to used')
-            print(r.DmvpnAddress)
             used_add.append(r.DmvpnAddress)
     all_addresses = list(ipaddress.ip_network(Settings.dmvpn_address_space).hosts())
     all_addresses.reverse()
     for i in all_addresses:
-        print(i)
         i = str(i)
         if i not in used_add:
-            print(i)
             available_add.append(i)
             if len(available_add) == number:
                 break
-    print('this is my availabel address list')
-    print(available_add)
     return available_add
-
-
-class Cgw:
-    def __init__(self, hub, region_extension, eligible, cluster_value, Region, AvailabilityZone, asn, InstanceType,
-                 max_bandwidth, available_bandwidth, AmiId, KeyName, DmvpnAddress, DmvpnNetmask, DmvpnCidr,
-                 h1_public=None, h1_private=None, h2_public=None, h2_private=None):
-        self.hub = hub
-        self.region_extension = region_extension
-        self.eligible = eligible
-        self.cluster_value = cluster_value
-        self.Region = Region
-        self.AvailabilityZone = AvailabilityZone
-        self.asn = asn
-        self.InstanceType = InstanceType
-        self.max_bandwidth = max_bandwidth
-        self.available_bandwidth = available_bandwidth
-        self.AmiId = AmiId
-        self.KeyName = KeyName
-        self.DmvpnAddress = DmvpnAddress
-        self.DmvpnNetmask = DmvpnNetmask
-        self.DmvpnCidr = DmvpnCidr
-        self.h1_public = h1_public
-        self.h1_private = h1_private
-        self.h2_public = h2_public
-        self.h2_private = h2_private
-
-    def update_eligible_tag(self):
-        logger = logging.getLogger(__name__)
-        client = boto3.client('ec2', region_name=self.Region)
-        try:
-            client.create_tags(
-                Resources=[
-                    self.InstanceId
-                ],
-                Tags=[
-                    {
-                        'Key': 'tvpc_eligible',
-                        'Value': self.eligible
-                    }
-                ]
-            )
-            return 'success'
-        except Exception as e:
-            logger.error("Exception while trying to update router %s tvpc_available_bandwidth tag", self.PublicIp,
-                         exc_info=True)
-            return 'fail'
 
 
 def get_all_routers():
@@ -755,3 +697,50 @@ def check_router_in_region(all_rout, cluster_value, region):
         if (i.Region == region) and (i.cluster_value == cluster_value):
             return True
     return False
+
+
+class Cgw:
+    def __init__(self, hub, region_extension, eligible, cluster_value, Region, AvailabilityZone, asn, InstanceType,
+                 max_bandwidth, available_bandwidth, AmiId, KeyName, DmvpnAddress, DmvpnNetmask, DmvpnCidr,
+                 vpc_cidr, h1_public=None, h1_private=None, h2_public=None, h2_private=None):
+        self.hub = hub
+        self.region_extension = region_extension
+        self.eligible = eligible
+        self.cluster_value = cluster_value
+        self.Region = Region
+        self.AvailabilityZone = AvailabilityZone
+        self.asn = asn
+        self.InstanceType = InstanceType
+        self.max_bandwidth = max_bandwidth
+        self.available_bandwidth = available_bandwidth
+        self.AmiId = AmiId
+        self.KeyName = KeyName
+        self.DmvpnAddress = DmvpnAddress
+        self.DmvpnNetmask = DmvpnNetmask
+        self.DmvpnCidr = DmvpnCidr
+        self.h1_public = h1_public
+        self.h1_private = h1_private
+        self.h2_public = h2_public
+        self.h2_private = h2_private
+        self.vpc_cidr = vpc_cidr
+
+    def update_eligible_tag(self):
+        logger = logging.getLogger(__name__)
+        client = boto3.client('ec2', region_name=self.Region)
+        try:
+            client.create_tags(
+                Resources=[
+                    self.InstanceId
+                ],
+                Tags=[
+                    {
+                        'Key': 'tvpc_eligible',
+                        'Value': self.eligible
+                    }
+                ]
+            )
+            return 'success'
+        except Exception as e:
+            logger.error("Exception while trying to update router %s tvpc_available_bandwidth tag", self.PublicIp,
+                         exc_info=True)
+            return 'fail'

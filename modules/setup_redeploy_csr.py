@@ -100,11 +100,11 @@ def build_main(old_cgw, cgw):
         cgw.eip_AllocationId = response['AllocationId']
         cgw.PublicIp = response['PublicIp']
 
-        vpc = ec2.create_vpc(CidrBlock='192.168.66.0/28')
+        vpc = ec2.create_vpc(CidrBlock=cgw.vpc_cidr)
         cgw.VpcId = vpc.id
+        vpc.wait_until_available()
         vpc.create_tags(Tags=[{"Key": "Name", "Value": "transit_vpc"}, {"Key": settings.tvpc_program_key,
                                                                         "Value": cgw.cluster_value}])
-        vpc.wait_until_available()
 
         ig = ec2.create_internet_gateway()
         vpc.attach_internet_gateway(InternetGatewayId=ig.id)
@@ -116,7 +116,7 @@ def build_main(old_cgw, cgw):
             GatewayId=ig.id
         )
 
-        subnet_1 = ec2.create_subnet(AvailabilityZone=cgw.AvailabilityZone, CidrBlock='192.168.66.0/28', VpcId=vpc.id)
+        subnet_1 = ec2.create_subnet(AvailabilityZone=cgw.AvailabilityZone, CidrBlock=cgw.vpc_cidr, VpcId=vpc.id)
         route_table.associate_with_subnet(SubnetId=subnet_1.id)
 
         sec_group = ec2.create_security_group(
@@ -184,6 +184,10 @@ def build_main(old_cgw, cgw):
                 {
                     'Key': 'tvpc_available_bandwidth',
                     'Value': str(cgw.available_bandwidth)
+                },
+                {
+                    'Key': 'tvpc_vpc_cidr',
+                    'Value': cgw.vpc_cidr
                 },
                 {
                     'Key': 'tvpc_DmvpnAddress',
