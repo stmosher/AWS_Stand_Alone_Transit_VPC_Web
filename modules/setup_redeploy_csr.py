@@ -262,7 +262,7 @@ def prompt(chan):
     buff = ''
     while not buff.endswith('#'):
         resp = chan.recv(9999)
-        resp1 = str(resp, 'utf-8')
+        resp1 = resp.decode('utf-8')
         buff += resp1
     return buff
 
