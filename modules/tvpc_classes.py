@@ -21,8 +21,6 @@ __author__ = "Steven Mosher <stmosher@cisco.com>"
 __copyright__ = "Copyright (c) 2019 Cisco and/or its affiliates."
 __license__ = "Cisco Sample Code License, Version 1.1"
 
-from jinja2 import Environment
-from jinja2 import BaseLoader
 import boto3
 import paramiko
 from config import Settings

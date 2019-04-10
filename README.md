@@ -1,4 +1,4 @@
-# AWS Stand Alone Cloud Transit VPC Solution
+# AWS Stand Alone Cloud Transit VPC Web Interface
 ## Description
 Summary: This program automates the lifecycle of Cisco CSR1000v routers for use with the stand-alone transit VPC 
 solution.
@@ -11,13 +11,6 @@ IT operations must ensure enterprise IT policies are followed. These include:
 Application owners and developers desire rapid on-demand provisioning of their applications.
 
 This program enables IT operations to rapidly provision a scalable and secure IPSEC overlay network for interVPC cloud routing.
-IT operations will provide application owners and developers a KEY/VALUE pair for access to the appropriate routing cluster.
-Once the application owners and/or developers tag their VPC connected AWS virtual private gateway (vGW) with the KEY/VALUE pair, 
-redundant VPN tunnels will be provisioned automatically.
-
-This program also allows application owners and developers to request bandwidth from the network. This allows the
-program to select the best suited router pair for the requested service. Bandwidth requests are configured  by the application
-owners and/or developers by adding a KEY='tvpc_bandwidth', VALUE='number for Mbps' tag to the vGW.
 
 ## Installation - Docker
 1. Clone the repository from GitHub

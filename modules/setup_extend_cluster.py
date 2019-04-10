@@ -84,27 +84,6 @@ def clean_up(cgw):
             logger.error("Exception occurred", exc_info=True)
 
     logger.warning('Previous Error - Successfully executed clean_up function ')
-#
-#
-# def collect_results(results_queue):
-#     results = []
-#     while True:
-#         try:
-#             results_element = results_queue.get(block=False)
-#             results.append(results_element)
-#         except Empty:
-#             break
-#     return results
-#
-#
-# def collect_results_config1(results_config1_queue):
-#     results_element = results_config1_queue.get(block=True)
-#     return results_element
-#
-#
-# def collect_results_config2(results_config2_queue):
-#     results_element = results_config2_queue.get(block=True)
-#     return results_element
 
 
 def build_main(results_queue, cgw):
