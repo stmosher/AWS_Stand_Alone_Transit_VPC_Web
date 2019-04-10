@@ -1,0 +1,32 @@
+FROM python:3.7.2-alpine
+
+RUN adduser -D web_app
+RUN apk update && apk upgrade && pip install -U pip
+
+RUN apk add build-base
+RUN apk add --update python3-dev py-pip openssl-dev libffi-dev zlib-dev libxslt-dev libxml2-dev openssh\
+    && rm -rf /var/cache/apk/*
+
+WORKDIR /home/web_app
+COPY requirements.txt requirements.txt
+RUN python -m venv venv
+RUN venv/bin/pip install -r requirements.txt
+RUN venv/bin/pip install gunicorn
+
+COPY web_app web_app
+COPY keys keys
+COPY modules modules
+COPY templates templates
+COPY config.py ./
+COPY web_app.py ./
+COPY docker_boot_web_app.sh ./
+RUN chmod +x docker_boot_web_app.sh
+
+ENV FLASK_APP web_app.py
+RUN chmod 600 -R keys/*
+
+RUN chown -R web_app:web_app ./
+USER web_app
+
+EXPOSE 5000
+ENTRYPOINT ["./docker_boot_web_app.sh"]
