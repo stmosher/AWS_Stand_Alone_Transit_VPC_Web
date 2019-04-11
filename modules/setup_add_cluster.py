@@ -340,7 +340,7 @@ def configure_main(config_results_queue, cgw, cgw_peer):
             ssh.close()
             logger.info('Successfully configured csr %s for cluster_add cluster %s', cgw.CustomerGatewayId,
                         cgw.cluster_value)
-            cgw.eligible = 'True'
+            cgw.eligible = settings.regions[cgw.Region]['eligible_default']
             cgw.update_eligible_tag()
             result = {'success': cgw}
             config_results_queue.put(result)

@@ -26,7 +26,16 @@ This program enables IT operations to rapidly provision a scalable and secure IP
     - ````````export web_password='Password123'````````
 3. Run script to set environment variables:
     - ````````source ./set_env_vars_empty.sh````````
-4. Add Regions, per region CSR1000v AMIs, and per regions keys to config.py
+4. Edit config.py file:
+    - Add regions
+        - Note dedicate instance of program to either commercial or GovCloud regions as access credentials are different
+        - Per region:
+            - configure CSR1000v AMI id
+            - configure AWS key name
+            - set eligible_default to 'True' or 'False'
+                - 'True' sets router eligible for VPNs after deployment. -Good for hourly AMI
+                - 'False' sets router ineligible for VPNS after deployment. -Allows you to configure licensing and then 
+                set router to eligible
 5. Copy your applicable AWS keys to directory "keys"
 6. Build docker container
     - ````````docker build -f Dockerfile_web_app -t web_app:latest .````````

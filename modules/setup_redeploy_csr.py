@@ -196,12 +196,7 @@ def build_main(old_cgw, cgw):
                 },
             ]
         )
-        # response = client.create_customer_gateway(
-        #     BgpAsn=int(cgw.asn),
-        #     PublicIp=cgw.PublicIp,
-        #     Type='ipsec.1'
-        # )
-        # cgw.CustomerGatewayId = response['CustomerGateway']['CustomerGatewayId']
+
         cgw.CustomerGatewayId = old_cgw.CustomerGatewayId
         ec2.create_tags(
             Resources=[
@@ -390,6 +385,7 @@ def configure_spoke_main(cgw):
 
 def main(old_cgw, new_cgw):
     logger = logging.getLogger(__name__)
+    settings = Settings()
     # Build the VPC and Instance
     result = build_main(old_cgw, new_cgw)
 
@@ -408,7 +404,7 @@ def main(old_cgw, new_cgw):
     old_cgw, new_cgw = transfer_eip(old_cgw, result['success'])
 
     # Enable new router
-    new_cgw.eligible = 'True'
+    new_cgw.eligible = settings.regions[new_cgw.Region]['eligible_default']
     new_cgw.update_eligible_tag()
 
     # Remove the old csr VPC

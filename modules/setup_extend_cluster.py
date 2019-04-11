@@ -315,7 +315,7 @@ def configure_main(config_results_queue, cgw):
             ssh.send('wr mem\n')
             prompt(ssh)
             ssh.close()
-            cgw.eligible = 'True'
+            cgw.eligible = settings.regions[cgw.Region]['eligible_default']
             cgw.update_eligible_tag()
             result = {'success': cgw}
             config_results_queue.put(result)

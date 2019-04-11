@@ -32,27 +32,33 @@ class Settings:
     regions = {
         # 'us-gov-west-1': {
         #     'ami': 'ami-19630c78',
-        #     'key': 'CSR_500'
-        # }
+        #     'key': 'CSR_500',
+        #     'eligible_default': 'False'
+        # },
         # 'us-gov-east-1': {
         #     'ami': 'xxxx',
-        #     'key': 'CSR_600'
+        #     'key': 'CSR_600',
+        #     'eligible_default': 'False'
         # },
         'us-east-1': {
             'ami': 'ami-0d8a2f539abbd5763',
-            'key': 'CSR_100'
+            'key': 'CSR_100',
+            'eligible_default': 'False'
         },
         'us-east-2': {
             'ami': 'ami-07f8094154b663213',
-            'key': 'CSR300'
+            'key': 'CSR300',
+            'eligible_default': 'False'
         },
         'us-west-1': {
             'ami': 'ami-0cf71f2688b924e36',
-            'key': 'CSR_400'
+            'key': 'CSR_400',
+            'eligible_default': 'False'
         },
         'us-west-2': {
             'ami': 'ami-01d5fc08abef26bc5',
-            'key': 'CSR_200'
+            'key': 'CSR_200',
+            'eligible_default': 'False'
         }
     }
     instance_types = {

@@ -69,6 +69,7 @@ def index():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    logger = logging.getLogger(__name__)
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     form = LoginForm()
@@ -77,7 +78,9 @@ def login():
         user_test = User(username=form.username.data, password=form.password.data)
         if user_test.username != user.username or user_test.password != user.password:
             flash('Invalid username or password')
+            logger.info("Invalid username or password. User %s attempted login", form.username.data)
             return redirect(url_for('login'))
+        logger.info("User %s logged in", form.username.data)
         login_user(user_test, remember=form.remember_me.data)
         return redirect(url_for('index'))
     return render_template('login.html', title='Sign In', form=form)
@@ -85,6 +88,8 @@ def login():
 
 @app.route('/logout')
 def logout():
+    logger = logging.getLogger(__name__)
+    logger.info("User logged out")
     logout_user()
     return redirect(url_for('index'))
 
@@ -131,6 +136,7 @@ def add_cluster():
         r1, r2 = setup_add_cluster.main(router1, router2)
         if r1 == 'fail':
             flash("Cluster '{}' deployment and configuration failed".format(form.cluster_value.data))
+            logger.warning("Cluster %s deployment and configuration failed", form.cluster_value.data)
         else:
             flash("Cluster '{}' deployed successfully!".format(r1.cluster_value))
             logger.info("Cluster %s deployed successfully!", r1.cluster_value)
@@ -142,6 +148,7 @@ def add_cluster():
 @app.route('/extend_cluster', methods=['GET', 'POST'])
 @login_required
 def extend_cluster():
+    logger = logging.getLogger(__name__)
     settings = Settings()
     all_routers = get_all_routers()
     form = ExtendCluster()
@@ -198,9 +205,11 @@ def extend_cluster():
         result = setup_extend_cluster.main(list_router_objects)
         if not result:
             flash('Cluster extension deployment and configuration failed.')
+            logger.warning('Cluster extension deployment and configuration failed.')
+
         else:
             flash('Cluster extension deployed successfully!')
-
+            logger.info('Cluster extension deployed successfully!')
         return redirect(url_for('extend_cluster'))
     return render_template('extend_cluster.html', title='Extend Cluster', form=form)
 
@@ -208,6 +217,7 @@ def extend_cluster():
 @app.route('/capacity_add', methods=['GET', 'POST'])
 @login_required
 def capacity_add():
+    logger = logging.getLogger(__name__)
     settings = Settings()
     all_routers = get_all_routers()
     form = AddCapacity()
@@ -269,9 +279,10 @@ def capacity_add():
         result = setup_capacity_add.main(list_router_objects)
         if not result:
             flash('Capacity add deployment and configuration failed.')
+            logger.warning('Capacity add deployment and configuration failed.')
         else:
             flash('Capacity add deployed successfully!')
-
+            logger.info('Capacity add deployed successfully!')
         return redirect(url_for('capacity_add'))
     return render_template('capacity_add.html', title='Add Capacity', form=form)
 
@@ -279,6 +290,7 @@ def capacity_add():
 @app.route('/remove_cluster', methods=['GET', 'POST'])
 @login_required
 def remove_cluster():
+    logger = logging.getLogger(__name__)
     form = RemoveCluster()
     all_routers = get_all_routers()
     unique_clusters = get_available_clusters(all_routers)
@@ -292,7 +304,7 @@ def remove_cluster():
     if form.validate_on_submit():
         setup_remove_cluster.main(form.cluster.data)
         flash('Cluster Destroyed')
-
+        logger.info('Cluster %s Destroyed', form.cluster.data)
         return redirect(url_for('remove_cluster'))
     return render_template('remove_cluster.html', title='Remove Cluster', form=form)
 
@@ -300,6 +312,7 @@ def remove_cluster():
 @app.route('/contract_cluster', methods=['GET', 'POST'])
 @login_required
 def contract_cluster():
+    logger = logging.getLogger(__name__)
     form = ContractCluster()
     all_routers = get_all_routers()
 
@@ -326,6 +339,7 @@ def contract_cluster():
         else:
             setup_contract_cluster.main(cluster_region_list[0], cluster_region_list[1])
             flash('Cluster Removed from Region')
+            logger.info('Cluster %s removed from region %s', cluster_region_list[0], cluster_region_list[1])
 
         return redirect(url_for('contract_cluster'))
     return render_template('contract_cluster.html', title='Contract Cluster', form=form)
@@ -334,6 +348,7 @@ def contract_cluster():
 @app.route('/csr_redeploy', methods=['GET', 'POST'])
 @login_required
 def csr_redeploy():
+    logger = logging.getLogger(__name__)
     all_routers = get_all_routers()
     settings = Settings()
     form = CsrRedeploy()
@@ -368,7 +383,7 @@ def csr_redeploy():
             DmvpnAddress = available_dmvpn_addresses.pop(0)
         else:
             DmvpnAddress = old_cgw.DmvpnAddress
-        available_subnets = get_available_vpc_cidr_space(all_routers, form.cluster_value.data, 1)
+        available_subnets = get_available_vpc_cidr_space(all_routers, old_cgw.cluster_value, 1)
         new_cgw = Cgw(Region=old_cgw.Region,
                       AvailabilityZone=old_cgw.AvailabilityZone,
                       hub=old_cgw.hub,
@@ -395,8 +410,10 @@ def csr_redeploy():
 
         if result == 'fail':
             flash('The redeploy failed!')
+            logger.warning('The redeploy of router %s failed', old_cgw.PublicIp)
         else:
             flash('The redeploy successfully completed!')
+            logger.info('The redeploy of router %s successfully completed!', old_cgw.PublicIp)
 
         return redirect(url_for('csr_redeploy'))
     return render_template('csr_redeploy.html', title='CSR Redeploy', form=form, cgws=candidates)
@@ -405,6 +422,7 @@ def csr_redeploy():
 @app.route('/capacity_remove', methods=['GET', 'POST'])
 @login_required
 def capacity_remove():
+    logger = logging.getLogger(__name__)
     all_routers = get_all_routers()
     all_vpns = get_all_vpns()
     candidates = list()
@@ -436,6 +454,7 @@ def capacity_remove():
             if router.PublicIp == csr_cluster_region_list[0]:
                 router.remove_router_vpc_etc()
                 flash('CGW removed')
+                logger.info('CGW %s removed', router.PublicIp)
 
         return redirect(url_for('capacity_remove'))
     return render_template('capacity_remove.html', title='Remove Capacity', form=form)
