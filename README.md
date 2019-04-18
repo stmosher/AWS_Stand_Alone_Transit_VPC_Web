@@ -46,7 +46,7 @@ This program enables IT operations to rapidly provision a scalable and secure IP
 9. Install and run the TVPC Poller app found at https://wwwin-github.cisco.com/stmosher/GovCloud_Poller_Program.git
 ## Installation - Local
 1. Clone the repository from GitHub
-    - ````````git clone https://wwwin-github.cisco.com/stmosher/GovCloud_Web_Interface.git````````
+    - ````````git clone https://github.com/stmosher/AWS_Stand_Alone_Transit_VPC_Web.git````````
 2. Create a virtual environment
     - `````` python3 venv venv ``````
 3. Activate virtual environment
