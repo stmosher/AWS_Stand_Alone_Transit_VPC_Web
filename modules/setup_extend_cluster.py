@@ -34,56 +34,57 @@ import logging
 
 def clean_up(cgw):
     logger = logging.getLogger(__name__)
-    client = boto3.client('ec2', region_name=cgw.Region)
-    if cgw.eip_AssociationId:
-        try:
-            client.disassociate_address(
-                AssociationId=cgw.eip_AssociationId
-            )
-        except Exception as e:
-            logger.error("Exception occurred", exc_info=True)
+    try:
+        client = boto3.client('ec2', region_name=cgw.Region)
+        if cgw.eip_AssociationId:
+            try:
+                client.disassociate_address(
+                    AssociationId=cgw.eip_AssociationId
+                )
+            except Exception as e:
+                logger.error("Exception occurred", exc_info=True)
+        if cgw.eip_AllocationId:
+            try:
+                client.release_address(
+                    AllocationId=cgw.eip_AllocationId
+                )
+            except Exception as e:
+                logger.error("Exception occurred", exc_info=True)
 
-    if cgw.eip_AllocationId:
-        try:
-            client.release_address(
-                AllocationId=cgw.eip_AllocationId
-            )
-        except Exception as e:
-            logger.error("Exception occurred", exc_info=True)
+        ec2 = boto3.resource('ec2', region_name=cgw.Region)
+        ec2client = ec2.meta.client
+        if cgw.VpcId:
+            try:
+                vpc = ec2.Vpc(cgw.VpcId)
+                for subnet in vpc.subnets.all():
+                    for instance in subnet.instances.all():
+                        instance.terminate()
+                        instance.wait_until_terminated()
+                for gw in vpc.internet_gateways.all():
+                    vpc.detach_internet_gateway(InternetGatewayId=gw.id)
+                    gw.delete()
+                for subnet in vpc.subnets.all():
+                    subnet.delete()
+                for rt in vpc.route_tables.all():
+                    if not rt.associations:
+                        rt.delete()
+                for sg in vpc.security_groups.all():
+                    if sg.group_name != 'default':
+                        sg.delete()
+                ec2client.delete_vpc(VpcId=cgw.VpcId)
+            except Exception as e:
+                logger.error("Exception occurred", exc_info=True)
 
-    ec2 = boto3.resource('ec2', region_name=cgw.Region)
-    ec2client = ec2.meta.client
-    if cgw.VpcId:
-        try:
-            vpc = ec2.Vpc(cgw.VpcId)
-            for subnet in vpc.subnets.all():
-                for instance in subnet.instances.all():
-                    instance.terminate()
-                    instance.wait_until_terminated()
-            for gw in vpc.internet_gateways.all():
-                vpc.detach_internet_gateway(InternetGatewayId=gw.id)
-                gw.delete()
-            for subnet in vpc.subnets.all():
-                subnet.delete()
-            for rt in vpc.route_tables.all():
-                if not rt.associations:
-                    rt.delete()
-            for sg in vpc.security_groups.all():
-                if sg.group_name != 'default':
-                    sg.delete()
-            ec2client.delete_vpc(VpcId=cgw.VpcId)
-        except Exception as e:
-            logger.error("Exception occurred", exc_info=True)
-
-    if cgw.CustomerGatewayId:
-        try:
-            client.delete_customer_gateway(
-                CustomerGatewayId=cgw.CustomerGatewayId
-            )
-        except Exception as e:
-            logger.error("Exception occurred", exc_info=True)
-
-    logger.warning('Previous Error - Successfully executed clean_up function ')
+        if cgw.CustomerGatewayId:
+            try:
+                client.delete_customer_gateway(
+                    CustomerGatewayId=cgw.CustomerGatewayId
+                )
+            except Exception as e:
+                logger.error("Exception occurred", exc_info=True)
+    except Exception as e:
+        logger.error("Exception occurred", exc_info=True)
+    logger.warning('Clean up from failed cluster extend complete')
 
 
 def build_main(results_queue, cgw):

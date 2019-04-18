@@ -31,15 +31,15 @@ class Config(object):
 class Settings:
     regions = {
         'us-gov-west-1': {
-            'ami': 'ami-19630c78',
+            'ami': 'ami-ce6617af',
             'key': 'CSR_500',
             'eligible_default': 'False'
+        },
+        'us-gov-east-1': {
+            'ami': 'ami-025da1276d2b0b0ae',
+            'key': 'CSR_600.pem',
+            'eligible_default': 'False'
         }
-        # 'us-gov-east-1': {
-        #     'ami': 'xxxx',
-        #     'key': 'CSR_600',
-        #     'eligible_default': 'False'
-        # },
         # 'us-east-1': {
         #     'ami': 'ami-0d8a2f539abbd5763',
         #     'key': 'CSR_100',
@@ -62,10 +62,15 @@ class Settings:
         # }
     }
     instance_types = {
-        'c4.large': 500,
-        'c4.xlarge': 1000,
-        'c4.2xlarge': 2000,
-        'c4.4xlarge': 4500
+        # 't2.medium': 250,
+        # 'c4.large': 500,
+        # 'c4.xlarge': 1000,
+        # 'c4.2xlarge': 2000,
+        # 'c4.4xlarge': 4500,
+        'c5.large': 2000,
+        'c5.2xlarge': 2500,
+        'c5.4xlarge': 8000,
+        'c5.9xlarge': 8900
     }
     tvpc_program_key = 'auto_tvpc_cluster_member'
     vpc_cidr_address_space = '10.255.0.0/23'
