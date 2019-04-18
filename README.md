@@ -14,7 +14,7 @@ This program enables IT operations to rapidly provision a scalable and secure IP
 
 ## Installation - Docker
 1. Clone the repository from GitHub
-    - ````````git clone https://wwwin-github.cisco.com/stmosher/GovCloud_Web_Interface.git````````
+    - ````````git clone https://github.com/stmosher/AWS_Stand_Alone_Transit_VPC_Web.git````````
 2. Edit set_env_vars_empty.sh with your appropriate DMVPN, AWS, and Web App access credentials. See example below:
     - ````````#!/usr/bin/env bash ````````
     - ````````export SECRET_KEY='key123'````````
