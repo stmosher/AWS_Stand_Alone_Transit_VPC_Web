@@ -379,7 +379,7 @@ def csr_redeploy():
                 hubs.append(rou)
 
         if old_cgw.hub == 'False':
-            available_dmvpn_addresses = get_available_dmvpn_addresses(all_routers, form.cluster_value.data, 1)
+            available_dmvpn_addresses = get_available_dmvpn_addresses(all_routers, old_cgw.cluster_value, 1)
             DmvpnAddress = available_dmvpn_addresses.pop(0)
         else:
             DmvpnAddress = old_cgw.DmvpnAddress
