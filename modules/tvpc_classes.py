@@ -433,22 +433,28 @@ class BotoClient:
         results = self.client.describe_vpn_gateways()
         vgws = list()
         for item in results['VpnGateways']:
-            tags_dict = self.get_tags(item['Tags'])
-            if tags_dict.get(Settings.tvpc_program_key):
-                item['Tags'] = tags_dict
-                item['Region'] = self.region
-                vgws.append(item)
+            try:
+                tags_dict = self.get_tags(item['Tags'])
+                if tags_dict.get(Settings.tvpc_program_key):
+                    item['Tags'] = tags_dict
+                    item['Region'] = self.region
+                    vgws.append(item)
+            except:
+                continue
         return vgws
 
     def get_cgws(self):
         results = self.client.describe_customer_gateways()
         cgws = list()
         for item in results['CustomerGateways']:
-            tags_dict = self.get_tags(item['Tags'])
-            if tags_dict.get(Settings.tvpc_program_key):
-                item['Tags'] = tags_dict
-                item['Region'] = self.region
-                cgws.append(item)
+            try:
+                tags_dict = self.get_tags(item['Tags'])
+                if tags_dict.get(Settings.tvpc_program_key):
+                    item['Tags'] = tags_dict
+                    item['Region'] = self.region
+                    cgws.append(item)
+            except:
+                continue
         return cgws
 
     def get_eips(self):
@@ -456,11 +462,14 @@ class BotoClient:
         eips = list()
         for item in results['Addresses']:
             if item.get('Tags', False):
-                tags_dict = self.get_tags(item['Tags'])
-                if tags_dict.get(Settings.tvpc_program_key):
-                    item['Tags'] = tags_dict
-                    item['Region'] = self.region
-                    eips.append(item)
+                try:
+                    tags_dict = self.get_tags(item['Tags'])
+                    if tags_dict.get(Settings.tvpc_program_key):
+                        item['Tags'] = tags_dict
+                        item['Region'] = self.region
+                        eips.append(item)
+                except:
+                    continue
         return eips
 
     def get_routers(self):
@@ -472,22 +481,28 @@ class BotoClient:
             elif item['Instances'][0]['State']['Name'] == 'shutting-down':
                 continue
             else:
-                tags_dict = self.get_tags(item['Instances'][0]['Tags'])
-                if tags_dict.get(Settings.tvpc_program_key):
-                    item['Instances'][0]['Tags'] = tags_dict
-                    item['Instances'][0]['Region'] = self.region
-                    routers.append(item['Instances'][0])
+                try:
+                    tags_dict = self.get_tags(item['Instances'][0]['Tags'])
+                    if tags_dict.get(Settings.tvpc_program_key):
+                        item['Instances'][0]['Tags'] = tags_dict
+                        item['Instances'][0]['Region'] = self.region
+                        routers.append(item['Instances'][0])
+                except:
+                    continue
         return routers
 
     def get_vpns(self):
         results = self.client.describe_vpn_connections()
         vpns = list()
         for item in results['VpnConnections']:
-            tags_dict = self.get_tags(item['Tags'])
-            if tags_dict.get(Settings.tvpc_program_key):
-                item['Tags'] = tags_dict
-                item['Region'] = self.region
-                vpns.append(item)
+            try:
+                tags_dict = self.get_tags(item['Tags'])
+                if tags_dict.get(Settings.tvpc_program_key):
+                    item['Tags'] = tags_dict
+                    item['Region'] = self.region
+                    vpns.append(item)
+            except:
+                continue
         return vpns
 
     @staticmethod

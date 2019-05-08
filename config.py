@@ -47,7 +47,7 @@ class Settings:
         # },
         # 'us-east-2': {
         #     'ami': 'ami-07f8094154b663213',
-        #     'key': 'CSR300',
+        #     'key': 'Ohio',
         #     'eligible_default': 'False'
         # },
         # 'us-west-1': {
