@@ -30,6 +30,7 @@ from config import Settings
 from queue import Empty
 import boto3
 import paramiko
+from modules.tvpc_classes import LicenseHelper
 
 
 def clean_up(cgw):
@@ -340,8 +341,22 @@ def configure_main(config_results_queue, cgw, cgw_peer):
             ssh.close()
             logger.info('Successfully configured csr %s for cluster_add cluster %s', cgw.CustomerGatewayId,
                         cgw.cluster_value)
-            cgw.eligible = settings.regions[cgw.Region]['eligible_default']
+
+            if settings.regions[cgw.Region]['smart_licensing'] == 'True':
+                sl_helper = LicenseHelper(cgw)
+                result = sl_helper.register()
+                if not result:
+                    cgw.eligible = 'False'
+                    cgw.registration_failed = True
+                    logger.warning('Smart Licensing Registration failed for router %s', cgw.PublicIp)
+                else:
+                    cgw.eligible = settings.regions[cgw.Region]['eligible_default']
+                    cgw.registration_failed = False
+            else:
+                cgw.eligible = settings.regions[cgw.Region]['eligible_default']
+                cgw.registration_failed = False
             cgw.update_eligible_tag()
+
             result = {'success': cgw}
             config_results_queue.put(result)
         except Exception as e:

@@ -30,6 +30,7 @@ from config import Settings
 from jinja2 import Template
 import time
 import logging
+from modules.tvpc_classes import LicenseHelper
 
 
 def clean_up(cgw):
@@ -316,8 +317,24 @@ def configure_main(config_results_queue, cgw):
             ssh.send('wr mem\n')
             prompt(ssh)
             ssh.close()
-            cgw.eligible = settings.regions[cgw.Region]['eligible_default']
+            logger.info('Successfully configured csr %s for cluster %s', cgw.CustomerGatewayId,
+                        cgw.cluster_value)
+
+            if settings.regions[cgw.Region]['smart_licensing'] == 'True':
+                sl_helper = LicenseHelper(cgw)
+                result = sl_helper.register()
+                if not result:
+                    cgw.eligible = 'False'
+                    cgw.registration_failed = True
+                    logger.warning('Smart Licensing Registration failed for router %s', cgw.PublicIp)
+                else:
+                    cgw.eligible = settings.regions[cgw.Region]['eligible_default']
+                    cgw.registration_failed = False
+            else:
+                cgw.eligible = settings.regions[cgw.Region]['eligible_default']
+                cgw.registration_failed = False
             cgw.update_eligible_tag()
+
             result = {'success': cgw}
             config_results_queue.put(result)
         except Exception as e:
@@ -446,4 +463,4 @@ def main(list_router_objects):
                     clean_up(i['success'])
                     logger.warning('Cleaned up because partner VPC had error')
             return False
-    return True
+    return config_results

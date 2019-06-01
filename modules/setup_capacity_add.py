@@ -30,6 +30,7 @@ import time
 import logging
 import boto3
 import paramiko
+from modules.tvpc_classes import LicenseHelper
 
 
 def clean_up(cgw):
@@ -315,8 +316,22 @@ def configure_main(config_results_queue, cgw):
             ssh.send('wr mem\n')
             prompt(ssh)
             ssh.close()
-            cgw.eligible = settings.regions[cgw.Region]['eligible_default']
+
+            if settings.regions[cgw.Region]['smart_licensing'] == 'True':
+                sl_helper = LicenseHelper(cgw)
+                result = sl_helper.register()
+                if not result:
+                    cgw.eligible = 'False'
+                    cgw.registration_failed = True
+                    logger.warning('Smart Licensing Registration failed for router %s', cgw.PublicIp)
+                else:
+                    cgw.eligible = settings.regions[cgw.Region]['eligible_default']
+                    cgw.registration_failed = False
+            else:
+                cgw.eligible = settings.regions[cgw.Region]['eligible_default']
+                cgw.registration_failed = False
             cgw.update_eligible_tag()
+
             result = {'success': cgw}
             config_results_queue.put(result)
         except Exception as e:
@@ -422,13 +437,7 @@ def main(list_router_objects):
             p.join()
 
         config_results = collect_results(results_queue_c)
-
-    flag = False
     if config_results:
-        for i in config_results:
-            if i.get('success', False):
-                logger.info('Router %s in cluster %s deployed in region %s!', i['success'].PublicIp,
-                            i['success'].cluster_value, i['success'].Region)
-                flag = True
-
-    return flag
+        return config_results
+    else:
+        return False

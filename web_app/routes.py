@@ -58,6 +58,7 @@ from modules.tvpc_classes import BotoClient
 from modules.tvpc_classes import Router
 from modules.tvpc_classes import Vpn
 from modules.tvpc_classes import Vgw
+from modules.tvpc_classes import LicenseHelper
 
 
 @app.route('/')
@@ -109,6 +110,11 @@ def add_cluster():
             flash("Cluster name '{}' has already been deployed in '{}'".format(form.cluster_value.data,
                                                                                form.Region.data))
             return redirect(url_for('add_cluster'))
+
+        if form.InstanceType.data not in settings.get_region_supported_instances(form.Region.data):
+            flash("Instance type '{}' is not available in '{}'".format(form.InstanceType.data, form.Region.data))
+            return redirect(url_for('add_cluster'))
+
         az_names = get_availability_zones_available(form.Region.data)
         all_routers = get_all_routers()
         available_dmvpn_addresses = get_available_dmvpn_addresses_hub(all_routers, form.cluster_value.data, 2)
@@ -137,6 +143,11 @@ def add_cluster():
         if r1 == 'fail':
             flash("Cluster '{}' deployment and configuration failed".format(form.cluster_value.data))
             logger.warning("Cluster %s deployment and configuration failed", form.cluster_value.data)
+        elif r1.registration_failed or r2.registration_failed:
+            if r1.registration_failed:
+                flash("Router '{}' failed to register with Cisco Smart Licensing".format(r1.PublicIp))
+            if r2.registration_failed:
+                flash("Router '{}' failed to register with Cisco Smart Licensing".format(r2.PublicIp))
         else:
             flash("Cluster '{}' deployed successfully!".format(r1.cluster_value))
             logger.info("Cluster %s deployed successfully!", r1.cluster_value)
@@ -163,6 +174,10 @@ def extend_cluster():
     form.cluster_value.choices = cluster_list
 
     if form.validate_on_submit():
+        if form.InstanceType.data not in settings.get_region_supported_instances(form.Region.data):
+            flash("Instance type '{}' is not available in '{}'".format(form.InstanceType.data, form.Region.data))
+            return redirect(url_for('extend_cluster'))
+
         cluster_already_there_result = check_router_in_region(all_routers, form.cluster_value.data, form.Region.data)
         if cluster_already_there_result:
             flash("Region '{}' already has cluster '{}'. Maybe you want to + capacity.".format(form.Region.data,
@@ -202,14 +217,19 @@ def extend_cluster():
                     h2_private=hubs[1].DmvpnAddress,
                     vpc_cidr=available_subnets.pop(0))
                 )
-        result = setup_extend_cluster.main(list_router_objects)
-        if not result:
-            flash('Cluster extension deployment and configuration failed.')
-            logger.warning('Cluster extension deployment and configuration failed.')
-
+        results_list = setup_extend_cluster.main(list_router_objects)
+        if not results_list:
+            flash("Cluster Extension failed")
+            logger.warning("Cluster Extension failed")
         else:
-            flash('Cluster extension deployed successfully!')
-            logger.info('Cluster extension deployed successfully!')
+            for i in results_list:
+                if i.get('success', False):
+                    flash("Router '{}' successfully deployed".format(i['success'].PublicIp))
+                    logger.info("Router %s deployed successfully!", i['success'].PublicIp)
+                    if i['success'].registration_failed:
+                        flash("Router '{}' failed to register with Cisco Smart Licensing".format(i['success'].PublicIp))
+                        logger.info("Router %s failed to register with Cisco Smart Licensing", i['success'].PublicIp)
+
         return redirect(url_for('extend_cluster'))
     return render_template('extend_cluster.html', title='Extend Cluster', form=form)
 
@@ -233,6 +253,10 @@ def capacity_add():
     form.cluster_value.choices = cluster_list
 
     if form.validate_on_submit():
+        if form.InstanceType.data not in settings.get_region_supported_instances(form.Region.data):
+            flash("Instance type '{}' is not available in '{}'".format(form.InstanceType.data, form.Region.data))
+            return redirect(url_for('capacity_add'))
+
         cluster_already_there_result = check_router_in_region(all_routers, form.cluster_value.data, form.Region.data)
         if not cluster_already_there_result:
             flash("Region '{region}' does not yet contain cluster '{cluster}'."
@@ -275,14 +299,23 @@ def capacity_add():
                     h2_private=hubs[1].DmvpnAddress,
                     vpc_cidr=available_subnets.pop(0))
                 )
+        results_list = setup_capacity_add.main(list_router_objects)
 
-        result = setup_capacity_add.main(list_router_objects)
-        if not result:
-            flash('Capacity add deployment and configuration failed.')
-            logger.warning('Capacity add deployment and configuration failed.')
+        if not results_list:
+            flash("Capacity add failed")
+            logger.warning("Capacity add failed")
         else:
-            flash('Capacity add deployed successfully!')
-            logger.info('Capacity add deployed successfully!')
+            for i in results_list:
+                if i.get('success', False):
+                    flash("Router '{}' successfully deployed".format(i['success'].PublicIp))
+                    logger.info("Router %s deployed successfully!", i['success'].PublicIp)
+                    if i['success'].registration_failed:
+                        flash("Router '{}' failed to register with Cisco Smart Licensing".format(i['success'].PublicIp))
+                        logger.info("Router %s failed to register with Cisco Smart Licensing", i['success'].PublicIp)
+                else:
+                    flash("Router '{}' failed to deploy".format(i['fail'].PublicIp))
+                    logger.warning("Router %s deployment and configuration failed", i['fail'].PublicIp)
+
         return redirect(url_for('capacity_add'))
     return render_template('capacity_add.html', title='Add Capacity', form=form)
 
@@ -373,6 +406,10 @@ def csr_redeploy():
             if router.PublicIp == csr_ip:
                 old_cgw = router
 
+        if form.InstanceType.data not in settings.get_region_supported_instances(old_cgw.Region):
+            flash("Instance type '{}' is not available in '{}'".format(form.InstanceType.data, old_cgw.Region))
+            return redirect(url_for('csr_redeploy'))
+
         hubs = list()
         for rou in all_routers:
             if (rou.cluster_value == old_cgw.cluster_value) and (rou.hub == 'True'):
@@ -407,12 +444,15 @@ def csr_redeploy():
                       )
 
         result = setup_redeploy_csr.main(old_cgw, new_cgw)
-
-        if result == 'fail':
-            flash('The redeploy failed!')
-            logger.warning('The redeploy of router %s failed', old_cgw.PublicIp)
+        # result = False or cgw object
+        if not result:
+            flash("Redeploy Failed")
+            logger.warning("Redeploy Failed")
         else:
-            flash('The redeploy successfully completed!')
+            if result.registration_failed:
+                    flash("Router '{}' failed to register with Cisco Smart Licensing".format(result.PublicIp))
+                    logger.info("Router %s failed to register with Cisco Smart Licensing", result.PublicIp)
+            flash('The redeploy completed!')
             logger.info('The redeploy of router %s successfully completed!', old_cgw.PublicIp)
 
         return redirect(url_for('csr_redeploy'))
@@ -452,6 +492,16 @@ def capacity_remove():
         csr_cluster_region_list = form.csr_cluster_region.data.split('/')
         for router in candidates:
             if router.PublicIp == csr_cluster_region_list[0]:
+
+                settings = Settings()
+                logger = logging.getLogger(__name__)
+                if settings.regions[router.Region]['smart_licensing'] == 'True':
+                    sl_helper = LicenseHelper(router)
+                    result = sl_helper.deregister()
+                    if not result:
+                        logger.warning('Smart Licensing DeRegistration failed for router %s', router.PublicIp)
+                        flash('Smart Licensing DeRegistration failed for router %s', router.PublicIp)
+
                 router.remove_router_vpc_etc()
                 flash('CGW removed')
                 logger.info('CGW %s removed', router.PublicIp)

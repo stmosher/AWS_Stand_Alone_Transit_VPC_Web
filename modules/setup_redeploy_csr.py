@@ -27,6 +27,7 @@ from config import Settings
 from jinja2 import Template
 import time
 import logging
+from modules.tvpc_classes import LicenseHelper
 
 
 def clean_up(cgw):
@@ -390,28 +391,47 @@ def main(old_cgw, new_cgw):
     result = build_main(old_cgw, new_cgw)
 
     if result.get('fail', False):
-        return 'fail'
+        return False
 
     # Properly Configure new CSR
     if not new_cgw.hub:
         result = configure_spoke_main(result['success'])
     elif new_cgw.hub:
         result = configure_hub_main(old_cgw, result['success'])
-    if result.get('fail'):
-        return 'fail'
+    if result.get('fail', False):
+        return False
+
+    # Smart License Deregister the old_csr
+    if settings.regions[old_cgw.Region]['smart_licensing'] == 'True':
+        sl_helper = LicenseHelper(old_cgw)
+        result_sl = sl_helper.deregister()
+        if not result_sl:
+            logger.warning('Smart Licensing DeRegistration failed for router %s', old_cgw.PublicIp)
 
     # Transfer the PublicIp from the old csr to the new
     old_cgw, new_cgw = transfer_eip(old_cgw, result['success'])
 
-    # Enable new router
-    new_cgw.eligible = settings.regions[new_cgw.Region]['eligible_default']
+    # Enable and if requested register new router
+    if settings.regions[new_cgw.Region]['smart_licensing'] == 'True':
+        sl_helper = LicenseHelper(new_cgw)
+        result = sl_helper.register()
+        if not result:
+            new_cgw.eligible = 'False'
+            new_cgw.registration_failed = True
+            logger.warning('Smart Licensing Registration failed for router %s', new_cgw.PublicIp)
+        else:
+            new_cgw.eligible = settings.regions[new_cgw.Region]['eligible_default']
+            new_cgw.registration_failed = False
+    else:
+        new_cgw.eligible = settings.regions[new_cgw.Region]['eligible_default']
+        new_cgw.registration_failed = False
     new_cgw.update_eligible_tag()
 
     # Remove the old csr VPC
     clean_up(old_cgw)
 
     logger.info('Redeployment of %s successful', old_cgw.PublicIp)
-    return 'success'
+    return new_cgw
 
 
 def transfer_eip(old_cgw, new_cgw):

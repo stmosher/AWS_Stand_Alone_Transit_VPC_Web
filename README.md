@@ -34,8 +34,25 @@ This program enables IT operations to rapidly provision a scalable and secure IP
             - configure AWS key name
             - set eligible_default to 'True' or 'False'
                 - 'True' sets router eligible for VPNs after deployment. -Good for hourly AMI
-                - 'False' sets router ineligible for VPNS after deployment. -Allows you to configure licensing and then 
+                - 'False' sets router ineligible for VPNs after deployment. -Allows you to configure licensing and then 
                 set router to eligible
+            - set smart_licensing to 'True' or 'False'
+                - 'True' automates the smart licensing configuration and registration
+                - 'False' does not configure smart licensing
+            - configure instance types for region
+                - allows program to verify instance types are offered in region    
+    - Optional Add Smart Licensing Info
+        - All feature sets must be the same
+        - If multiple licenses with differing throughputs are listed, program picks the best license throughout for instance size's IPSEC performance    
+        - Licensing
+            - Add dictionary to list consisting of 
+                 - license_token - Appropriate smart licensing token
+                 - license_feature_set - Appropriate feature set in your account
+                 - license_throughput - Appropriate throughput of licenses
+        - dns_server
+        - email_address
+        - smart_licensing_server, i.e. 'https://tools.cisco.com/its/service/oddce/services/DDCEService' or your appropriate satellite server address
+        
 5. Copy your applicable AWS keys to directory "keys"
 6. Build docker container
     - ````````docker build -f Dockerfile_web_app -t web_app:latest .````````
@@ -64,7 +81,32 @@ This program enables IT operations to rapidly provision a scalable and secure IP
     - ````````source ./set_env_vars_empty.sh````````
 6. Install application requirements:
     - ````````pip install -r requirements.txt````````
-7. Add Regions, per region CSR1000v AMIs, and per regions keys to config.py
+7. Edit config.py file:
+    - Add regions
+        - Note dedicate instance of program to either commercial or GovCloud regions as access credentials are different
+        - Per region:
+            - configure CSR1000v AMI id
+            - configure AWS key name
+            - set eligible_default to 'True' or 'False'
+                - 'True' sets router eligible for VPNs after deployment. -Good for hourly AMI
+                - 'False' sets router ineligible for VPNs after deployment. -Allows you to configure licensing and then 
+                set router to eligible
+            - set smart_licensing to 'True' or 'False'
+                - 'True' automates the smart licensing configuration and registration
+                - 'False' does not configure smart licensing
+            - configure instance types for region
+                - allows program to verify instance types are offered in region    
+    - Optional Add Smart Licensing Info
+        - All feature sets must be the same
+        - If multiple licenses with differing throughputs are listed, program picks the best license throughout for instance size's IPSEC performance    
+        - Licensing
+            - Add dictionary to list consisting of 
+                 - license_token - Appropriate smart licensing token
+                 - license_feature_set - Appropriate feature set in your account
+                 - license_throughput - Appropriate throughput of licenses
+        - dns_server
+        - email_address
+        - smart_licensing_server, i.e. 'https://tools.cisco.com/its/service/oddce/services/DDCEService' or your appropriate satellite server address
 8. Copy your applicable AWS keys to directory "keys"
 9. Start web server
     - ````````flask run -h 0.0.0.0 -p 8080 ````````

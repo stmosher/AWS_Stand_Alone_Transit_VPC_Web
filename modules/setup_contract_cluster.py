@@ -26,6 +26,9 @@ from modules.tvpc_classes import BotoClient
 from modules.tvpc_classes import Router
 from modules.tvpc_classes import Vpn
 from modules.tvpc_classes import Vgw
+from modules.tvpc_classes import LicenseHelper
+from config import Settings
+import logging
 
 
 def create_aws_objects(eip, vgw, cgw, rou, vpn):
@@ -97,4 +100,13 @@ def main(cluster, region):
 
 
 def remove_router(router):
+    # Deregister if using Smart Licensing
+    settings = Settings()
+    logger = logging.getLogger(__name__)
+    if settings.regions[router.Region]['smart_licensing'] == 'True':
+        sl_helper = LicenseHelper(router)
+        result = sl_helper.deregister()
+        if not result:
+            logger.warning('Smart Licensing DeRegistration failed for router %s', router.PublicIp)
+    # Remove VPC et all
     router.remove_router_vpc_etc()
