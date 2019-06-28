@@ -65,7 +65,7 @@ This program enables IT operations to rapidly provision a scalable and secure IP
 1. Clone the repository from GitHub
     - ````````git clone https://github.com/stmosher/AWS_Stand_Alone_Transit_VPC_Web.git````````
 2. Create a virtual environment
-    - `````` python3 venv venv ``````
+    - `````` python3 -m venv venv ``````
 3. Activate virtual environment
     - ```````` source venv/bin/activate```````` 
 4. Edit set_env_vars_empty.sh with your appropriate DMVPN, AWS, and Web App access credentials. See example below:
