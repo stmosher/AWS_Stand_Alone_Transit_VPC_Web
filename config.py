@@ -39,7 +39,8 @@ class Settings:
         #     'instance_types': {
         #         't2.medium': 250,
         #         'c5.large': 2000,
-        #         'c5.2xlarge': 2500,
+        #         'c5.xlarge': 2500,
+        #         'c5.2xlarge': 6000,
         #         'c5.4xlarge': 8000,
         #         'c5.9xlarge': 8900
         #     }
@@ -51,7 +52,8 @@ class Settings:
         #     'smart_licensing': 'True',
         #     'instance_types': {
         #         'c5.large': 2000,
-        #         'c5.2xlarge': 2500,
+        #         'c5.xlarge': 2500,
+        #         'c5.2xlarge': 6000,
         #         'c5.4xlarge': 8000,
         #         'c5.9xlarge': 8900
         #     }
@@ -68,7 +70,8 @@ class Settings:
                 'c4.2xlarge': 2000,
                 'c4.4xlarge': 4500,
                 'c5.large': 2000,
-                'c5.2xlarge': 2500,
+                'c5.xlarge': 2500,
+                'c5.2xlarge': 6000,
                 'c5.4xlarge': 8000,
                 'c5.9xlarge': 8900
             }
@@ -85,7 +88,8 @@ class Settings:
                 'c4.2xlarge': 2000,
                 'c4.4xlarge': 4500,
                 'c5.large': 2000,
-                'c5.2xlarge': 2500,
+                'c5.xlarge': 2500,
+                'c5.2xlarge': 6000,
                 'c5.4xlarge': 8000,
                 'c5.9xlarge': 8900
             }
@@ -102,7 +106,8 @@ class Settings:
         #         'c4.2xlarge': 2000,
         #         'c4.4xlarge': 4500,
         #         'c5.large': 2000,
-        #         'c5.2xlarge': 2500,
+        #         'c5.xlarge': 2500,
+        #         'c5.2xlarge': 6000,
         #         'c5.4xlarge': 8000,
         #         'c5.9xlarge': 8900
         #     }
@@ -119,7 +124,8 @@ class Settings:
         #         'c4.2xlarge': 2000,
         #         'c4.4xlarge': 4500,
         #         'c5.large': 2000,
-        #         'c5.2xlarge': 2500,
+        #         'c5.xlarge': 2500,
+        #         'c5.2xlarge': 6000,
         #         'c5.4xlarge': 8000,
         #         'c5.9xlarge': 8900
         #     }
@@ -133,7 +139,8 @@ class Settings:
         'c4.2xlarge': 2000,
         'c4.4xlarge': 4500,
         'c5.large': 2000,
-        'c5.2xlarge': 2500,
+        'c5.xlarge': 2500,
+        'c5.2xlarge': 6000,
         'c5.4xlarge': 8000,
         'c5.9xlarge': 8900
     }
