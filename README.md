@@ -98,7 +98,8 @@ This program enables IT operations to rapidly provision a scalable and secure IP
                 - allows program to verify instance types are offered in region    
     - Optional Add Smart Licensing Info
         - All feature sets must be the same
-        - If multiple licenses with differing throughputs are listed, program picks the best license throughout for instance size's IPSEC performance    
+        - If multiple licenses with differing throughputs are listed, program picks the best license throughout for instance size's IPSEC performance
+        - The router's tvpc_available_bandwidth Tag will be initialized as the lessor of the instance_type IPSEC performance and the license throughput
         - Licensing
             - Add dictionary to list consisting of 
                  - license_token - Appropriate smart licensing token

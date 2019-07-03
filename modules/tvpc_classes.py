@@ -520,18 +520,18 @@ class LicenseHelper:
 
     def register(self):
         if not self.set_license_info():
-            return False
+            return False, False
         if not self.render_smart_license_configure():
-            return False
+            return False, False
         if not self.render_smart_license_enable():
-            return False
+            return False, False
         if not self.configure_router():
-            return False
+            return False, False
         if not self.ensure_registered():
-            return False
+            return False, False
         if not self.enable_router():
-            return False
-        return True
+            return False, False
+        return True, self.license_throughput
 
     def deregister(self):
         logger = logging.getLogger(__name__)

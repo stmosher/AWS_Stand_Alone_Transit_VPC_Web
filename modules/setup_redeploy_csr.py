@@ -414,7 +414,7 @@ def main(old_cgw, new_cgw):
     # Enable and if requested register new router
     if settings.regions[new_cgw.Region]['smart_licensing'] == 'True':
         sl_helper = LicenseHelper(new_cgw)
-        result = sl_helper.register()
+        result, license_throughput = sl_helper.register()
         if not result:
             new_cgw.eligible = 'False'
             new_cgw.registration_failed = True
@@ -422,6 +422,10 @@ def main(old_cgw, new_cgw):
         else:
             new_cgw.eligible = settings.regions[new_cgw.Region]['eligible_default']
             new_cgw.registration_failed = False
+            # Make the available_bandwidth TAG the lesser of the Smart Licensing and instance max performance
+            if license_throughput < new_cgw.available_bandwidth:
+                new_cgw.available_bandwidth = license_throughput
+                new_cgw.update_available_bandwidth_tag()
     else:
         new_cgw.eligible = settings.regions[new_cgw.Region]['eligible_default']
         new_cgw.registration_failed = False

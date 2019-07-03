@@ -813,3 +813,24 @@ class Cgw:
             logger.error("Exception while trying to update router %s tvpc_available_bandwidth tag", self.PublicIp,
                          exc_info=True)
             return 'fail'
+
+    def update_available_bandwidth_tag(self):
+        logger = logging.getLogger(__name__)
+        client = boto3.client('ec2', region_name=self.Region)
+        try:
+            client.create_tags(
+                Resources=[
+                    self.InstanceId
+                ],
+                Tags=[
+                    {
+                        'Key': 'tvpc_available_bandwidth',
+                        'Value': str(self.available_bandwidth)
+                    }
+                ]
+            )
+            return 'success'
+        except:
+            logger.error("Exception while trying to update router %s tvpc_available_bandwidth tag", self.PublicIp,
+                         exc_info=True)
+            return 'fail'

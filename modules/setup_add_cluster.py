@@ -344,7 +344,7 @@ def configure_main(config_results_queue, cgw, cgw_peer):
 
             if settings.regions[cgw.Region]['smart_licensing'] == 'True':
                 sl_helper = LicenseHelper(cgw)
-                result = sl_helper.register()
+                result, license_throughput = sl_helper.register()
                 if not result:
                     cgw.eligible = 'False'
                     cgw.registration_failed = True
@@ -352,6 +352,10 @@ def configure_main(config_results_queue, cgw, cgw_peer):
                 else:
                     cgw.eligible = settings.regions[cgw.Region]['eligible_default']
                     cgw.registration_failed = False
+                    # Make the available_bandwidth TAG the lesser of the Smart Licensing and instance max performance
+                    if license_throughput < cgw.available_bandwidth:
+                        cgw.available_bandwidth = license_throughput
+                        cgw.update_available_bandwidth_tag()
             else:
                 cgw.eligible = settings.regions[cgw.Region]['eligible_default']
                 cgw.registration_failed = False
