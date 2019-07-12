@@ -30,6 +30,24 @@ import re
 import time
 
 
+class Tgw:
+    def __init__(self, tgw):
+        self.tvpc_program_key = Settings.tvpc_program_key
+        self.cluster_value = tgw['Tags'].get(self.tvpc_program_key, '')
+        self.Region = tgw['Region']
+        self.TransitGatewayId = tgw['TransitGatewayId']
+        self.State = tgw['State']
+        self.AmazonSideAsn = tgw['Options']['AmazonSideAsn']  ## integer ASN
+        self.AutoAcceptSharedAttachments = tgw['Options']['AutoAcceptSharedAttachments']
+        self.DefaultRouteTableAssociation = tgw['Options']['DefaultRouteTableAssociation']
+        self.AssociationDefaultRouteTableId = tgw['Options']['AssociationDefaultRouteTableId']
+        self.DefaultRouteTablePropagation = tgw['Options']['DefaultRouteTablePropagation']
+        self.PropagationDefaultRouteTableId = tgw['Options']['PropagationDefaultRouteTableId']
+        self.VpnEcmpSupport = tgw['Options']['VpnEcmpSupport']
+        self.unavailable_vpn_cidrs = []
+        self.available_vpn_cidrs = []
+
+
 class Vgw:
     def __init__(self, vgw):
         self.tvpc_program_key = Settings.tvpc_program_key
@@ -42,7 +60,8 @@ class Vgw:
 class Vpn:
     def __init__(self, vpn, cgws):
         self.VpnConnectionId = vpn['VpnConnectionId']
-        self.VpnGatewayId = vpn['VpnGatewayId']
+        self.VpnGatewayId = vpn.get('VpnGatewayId', '')
+        self.TransitGatewayId = vpn.get('TransitGatewayId', '')
         self.CustomerGatewayId = vpn['CustomerGatewayId']
         self.Region = vpn['Region']
         self.status_aws = vpn['State']
@@ -432,6 +451,20 @@ class BotoClient:
         self.region = region
         self.client = boto3.client('ec2', region_name=self.region)
         self.ec2 = boto3.resource('ec2', region_name=self.region)
+
+    def get_tgws(self):
+        results = self.client.describe_transit_gateways()
+        tgws = list()
+        for item in results['TransitGateways']:
+            try:
+                tags_dict = self.get_tags(item['Tags'])
+                if tags_dict.get(Settings.tvpc_program_key):
+                    item['Tags'] = tags_dict
+                    item['Region'] = self.region
+                    tgws.append(item)
+            except:
+                continue
+        return tgws
 
     def get_vgws(self):
         results = self.client.describe_vpn_gateways()

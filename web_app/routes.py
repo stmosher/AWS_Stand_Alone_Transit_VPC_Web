@@ -58,6 +58,7 @@ from modules.tvpc_classes import BotoClient
 from modules.tvpc_classes import Router
 from modules.tvpc_classes import Vpn
 from modules.tvpc_classes import Vgw
+from modules.tvpc_classes import Tgw
 from modules.tvpc_classes import LicenseHelper
 
 
@@ -105,7 +106,7 @@ def add_cluster():
     form.InstanceType.choices = settings.get_instances_tuples()
 
     if form.validate_on_submit():
-        region_routers_candidate, region_vgws_candidate, region_vpns_candidate, available_clusters = get_cluster_data(form.Region.data)
+        region_routers_candidate, region_vgws_candidate, region_vpns_candidate, available_clusters, region_tgws_candidate = get_cluster_data(form.Region.data)
         if form.cluster_value.data in available_clusters:
             flash("Cluster name '{}' has already been deployed in '{}'".format(form.cluster_value.data,
                                                                                form.Region.data))
@@ -199,7 +200,7 @@ def extend_cluster():
                 Cgw(Region=form.Region.data,
                     hub=False,
                     region_extension=True,
-                    AvailabilityZone=az_names.pop(-1),
+                    AvailabilityZone=az_names.pop(0),
                     InstanceType=form.InstanceType.data,
                     asn=int(cgw_template.asn),
                     cluster_value=form.cluster_value.data,
@@ -572,8 +573,9 @@ def dashboard():
     results_cgws = []
     results_vgws = []
     results_vpns = []
+    results_tgws = []
     for region in regions:
-        region_routers_candidate, region_vgws_candidate, region_vpns_candidate, available_clusters = get_cluster_data(
+        region_routers_candidate, region_vgws_candidate, region_vpns_candidate, available_clusters, region_tgws_candidate = get_cluster_data(
             region)
         r = list()
         for i in region_routers_candidate:
@@ -603,7 +605,10 @@ def dashboard():
         region_vpns_candidate = sorted(region_vpns_candidate, key=lambda k: k.cluster_value, reverse=False)
         results_vpns.extend(region_vpns_candidate)
 
-    return render_template('dashboard.html', title='Dashboard', cgws=results_cgws, vgws=results_vgws, vpns=results_vpns)
+        region_tgws_candidate = sorted(region_tgws_candidate, key=lambda k: k.cluster_value, reverse=False)
+        results_tgws.extend(region_tgws_candidate)
+
+    return render_template('dashboard.html', title='Dashboard', cgws=results_cgws, vgws=results_vgws, vpns=results_vpns, tgws=results_tgws)
 
 
 def get_availability_zones_available(region):
@@ -652,13 +657,18 @@ def get_aws_information(reg):
     cg = ec2_client.get_cgws()
     ro = ec2_client.get_routers()
     vp = ec2_client.get_vpns()
-    return ei, vg, cg, ro, vp
+    try:
+        tg = ec2_client.get_tgws()
+    except:
+        tg = []
+    return ei, vg, cg, ro, vp, tg
 
 
-def create_aws_objects(eip, vgw, cgw, rou, vpn):
+def create_aws_objects(eip, vgw, cgw, rou, vpn, tgw):
     region_routers_candidate_d = list()
     region_vgws_candidate_d = list()
     region_vpns_candidate_d = list()
+    region_tgws_candidate_d = list()
     for vg in vgw:
         region_vgws_candidate_d.append(Vgw(vg))
     for r in rou:
@@ -670,7 +680,9 @@ def create_aws_objects(eip, vgw, cgw, rou, vpn):
             region_routers_candidate_d.append(Router(r, cgw, eip))
     for vp in vpn:
         region_vpns_candidate_d.append(Vpn(vp, cgw))
-    return region_routers_candidate_d, region_vgws_candidate_d, region_vpns_candidate_d
+    for tg in tgw:
+        region_tgws_candidate_d.append(Tgw(tg))
+    return region_routers_candidate_d, region_vgws_candidate_d, region_vpns_candidate_d, region_tgws_candidate_d
 
 
 def get_available_clusters(ro):
@@ -684,12 +696,12 @@ def get_available_clusters(ro):
 
 def get_cluster_data(region):
     # get aws info
-    ei, vg, cg, ro, vp = get_aws_information(region)
+    ei, vg, cg, ro, vp, tg = get_aws_information(region)
     # create objects from aws info
-    region_routers_candidate, region_vgws_candidate, region_vpns_candidate = create_aws_objects(ei, vg, cg, ro, vp)
+    region_routers_candidate, region_vgws_candidate, region_vpns_candidate, region_tgws_candidate = create_aws_objects(ei, vg, cg, ro, vp, tg)
     # create available cluster list
     available_clusters = get_available_clusters(region_routers_candidate)
-    return region_routers_candidate, region_vgws_candidate, region_vpns_candidate, available_clusters
+    return region_routers_candidate, region_vgws_candidate, region_vpns_candidate, available_clusters, region_tgws_candidate
 
 
 def get_available_vpc_cidr_space(routers, cluster, number=2):
@@ -744,9 +756,8 @@ def get_available_dmvpn_addresses_hub(routers, cluster, number=2):
 def get_all_routers():
     router_objects = list()
     for reg in Settings.regions:
-        eips, vgws, cgws, routers, vpns = get_aws_information(reg)
-        region_routers_candidate, region_vgws_candidate, region_vpns_candidate = create_aws_objects(eips, vgws, cgws,
-                                                                                                    routers, vpns)
+        eips, vgws, cgws, routers, vpns, tgws = get_aws_information(reg)
+        region_routers_candidate, region_vgws_candidate, region_vpns_candidate, region_tgws_candidate = create_aws_objects(eips, vgws, cgws, routers, vpns, tgws)
         router_objects.extend(region_routers_candidate)
     return router_objects
 
@@ -754,9 +765,8 @@ def get_all_routers():
 def get_all_vpns():
     vpn_objects = list()
     for reg in Settings.regions:
-        eips, vgws, cgws, routers, vpns = get_aws_information(reg)
-        region_routers_candidate, region_vgws_candidate, region_vpns_candidate = create_aws_objects(eips, vgws, cgws,
-                                                                                                    routers, vpns)
+        eips, vgws, cgws, routers, vpns, tgws = get_aws_information(reg)
+        region_routers_candidate, region_vgws_candidate, region_vpns_candidate, region_tgws_candidate = create_aws_objects(eips, vgws, cgws, routers, vpns, tgws)
         vpn_objects.extend(region_vpns_candidate)
     return vpn_objects
 
